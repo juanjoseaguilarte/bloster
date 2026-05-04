@@ -97,13 +97,8 @@ export default function EmployeeScheduleView({ userId }: { userId: string }) {
       {status === 'unpublished' && (
         <div className="flex flex-col items-center justify-center py-20 text-center px-6">
           <div className="text-5xl mb-4">🕐</div>
-          <h2 className="text-lg font-bold text-gray-700 mb-2">Horario no disponible</h2>
-          <p className="text-gray-400 text-sm">
-            {isCurrentWeek
-              ? 'Tu horario de esta semana aún no ha sido publicado.'
-              : 'El horario de la próxima semana aún no está disponible.'}
-            <br />Vuelve a consultar más tarde.
-          </p>
+          <h2 className="text-lg font-bold text-gray-700 mb-1">No disponible</h2>
+          <p className="text-gray-400 text-sm">Vuelve más tarde.</p>
         </div>
       )}
 
