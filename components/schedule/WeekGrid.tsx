@@ -113,7 +113,7 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
   const isManagerOrAdmin = ['ADMIN', 'GESTOR'].includes(session?.user?.role || '')
   const editable = isManagerOrAdmin && !readOnly
   const isCurrentWeek = currentWeek.getTime() === getWeekStart(new Date()).getTime()
-  const groupUsers = users.filter(u => u.group === activeGroup)
+  const groupUsers = users.filter(u => (u.group ?? 'BARRA') === activeGroup)
 
   const renderSection = (period: Period, label: string) => (
     <>
