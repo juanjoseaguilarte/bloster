@@ -10,7 +10,7 @@ interface User {
 
 const EMPTY_FORM = { name: '', email: '', password: '', role: 'EMPLEADO', color: '#3B82F6', group: 'BARRA' }
 
-export default function UsersClient() {
+export default function UsersClient({ isAdmin }: { isAdmin: boolean }) {
   const [users, setUsers] = useState<User[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<User | null>(null)
@@ -131,7 +131,7 @@ export default function UsersClient() {
                 <select value={form.role} onChange={e => setForm({...form, role: e.target.value})} className="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 text-sm">
                   <option value="EMPLEADO">Empleado</option>
                   <option value="GESTOR">Gestor</option>
-                  <option value="ADMIN">Admin</option>
+                  {isAdmin && <option value="ADMIN">Admin</option>}
                 </select>
                 <select value={form.group} onChange={e => setForm({...form, group: e.target.value})} className="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 text-sm">
                   <option value="BARRA">Barra</option>

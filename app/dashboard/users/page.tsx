@@ -5,6 +5,6 @@ import UsersClient from './UsersClient'
 
 export default async function UsersPage() {
   const session = await getServerSession(authOptions)
-  if (session?.user?.role !== 'ADMIN') redirect('/dashboard')
-  return <UsersClient />
+  if (!['ADMIN', 'GESTOR'].includes(session?.user?.role || '')) redirect('/dashboard')
+  return <UsersClient isAdmin={session?.user?.role === 'ADMIN'} />
 }
