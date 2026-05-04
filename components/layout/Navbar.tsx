@@ -22,6 +22,7 @@ export default function Navbar() {
       ]
 
   return (
+    <>
     <nav className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
       <div className="flex items-center gap-6">
         <span className="font-bold text-blue-600 text-lg">Bloster</span>
@@ -51,5 +52,6 @@ export default function Navbar() {
       </div>
     </nav>
     <VersionChecker />
+    </>
   )
 }
