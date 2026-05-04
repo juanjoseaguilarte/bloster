@@ -17,7 +17,7 @@ export default function Navbar() {
         { href: '/dashboard/profile', label: 'Mi perfil' },
       ]
     : [
-        { href: '/dashboard', label: 'Mi turno' },
+        { href: '/dashboard', label: 'Mi Bloster' },
         { href: '/dashboard/profile', label: 'Mi perfil' },
       ]
 
