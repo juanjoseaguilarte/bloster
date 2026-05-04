@@ -7,16 +7,20 @@ export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
   const isEmployee = session?.user?.role === 'EMPLEADO'
 
-  let users: { id: string; name: string; color: string }[] = []
+  let users: { id: string; name: string; color: string; group: 'BARRA' | 'COCINA' }[] = []
 
   if (!isEmployee) {
     users = await prisma.user.findMany({
       where: { active: true },
-      select: { id: true, name: true, color: true },
+      select: { id: true, name: true, color: true, group: true },
       orderBy: { name: 'asc' },
     })
   } else {
-    users = [{ id: session!.user.id, name: session!.user.name!, color: session!.user.color }]
+    const dbUser = await prisma.user.findUnique({
+      where: { id: session!.user.id },
+      select: { id: true, name: true, color: true, group: true },
+    })
+    users = dbUser ? [dbUser] : []
   }
 
   return (

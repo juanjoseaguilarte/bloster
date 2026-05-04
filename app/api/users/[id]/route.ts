@@ -35,6 +35,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (body.email) data.email = body.email
     if (body.role) data.role = body.role
     if (body.color) data.color = body.color
+    if (body.group) data.group = body.group
     if (body.active !== undefined) data.active = body.active
   }
 

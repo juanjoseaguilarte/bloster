@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 
 type ShiftType = 'TIME' | 'LIBRE' | 'OFF' | 'IMAGINARY'
 type Period = 'MORNING' | 'AFTERNOON'
+type Group = 'BARRA' | 'COCINA'
 
 interface Shift {
   id: string
@@ -30,6 +31,7 @@ interface User {
   id: string
   name: string
   color: string
+  group: Group
 }
 
 interface Props {
@@ -44,6 +46,7 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
   const [loading, setLoading] = useState(true)
   const [closing, setClosing] = useState(false)
   const [showSummary, setShowSummary] = useState(false)
+  const [activeGroup, setActiveGroup] = useState<Group>('BARRA')
 
   const fetchSchedule = useCallback(async () => {
     setLoading(true)
@@ -59,15 +62,10 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
   useEffect(() => { fetchSchedule() }, [fetchSchedule])
 
   function prevWeek() {
-    const d = new Date(currentWeek)
-    d.setDate(d.getDate() - 7)
-    setCurrentWeek(d)
+    const d = new Date(currentWeek); d.setDate(d.getDate() - 7); setCurrentWeek(d)
   }
-
   function nextWeek() {
-    const d = new Date(currentWeek)
-    d.setDate(d.getDate() + 7)
-    setCurrentWeek(d)
+    const d = new Date(currentWeek); d.setDate(d.getDate() + 7); setCurrentWeek(d)
   }
 
   async function handleSaveShift(userId: string, day: string, period: Period, type: ShiftType, startTime?: string) {
@@ -84,7 +82,7 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
         const shifts = prev.shifts.filter(s => !(s.userId === userId && s.day === day && s.period === period))
         return { ...prev, shifts: [...shifts, updated] }
       })
-      toast.success('Turno guardado')
+      toast.success('Guardado')
     } else {
       toast.error('Error al guardar')
     }
@@ -94,14 +92,13 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
     if (!schedule) return
     setClosing(true)
     try {
-      const reopen = schedule.isClosed
       const res = await fetch(`/api/schedules/${schedule.id}/close`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reopen }),
+        body: JSON.stringify({ reopen: schedule.isClosed }),
       })
       if (res.ok) {
-        toast.success(reopen ? 'Semana reabierta' : 'Semana cerrada y publicada')
+        toast.success(schedule.isClosed ? 'Semana reabierta' : 'Semana publicada')
         fetchSchedule()
       }
     } finally {
@@ -109,23 +106,28 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
     }
   }
 
-  function getShift(userId: string, day: string, period: Period): Shift | undefined {
+  function getShift(userId: string, day: string, period: Period) {
     return schedule?.shifts.find(s => s.userId === userId && s.day === day && s.period === period)
   }
 
   const isManagerOrAdmin = ['ADMIN', 'GESTOR'].includes(session?.user?.role || '')
   const editable = isManagerOrAdmin && !readOnly
-  const now = getWeekStart(new Date())
-  const isCurrentWeek = currentWeek.getTime() === now.getTime()
+  const isCurrentWeek = currentWeek.getTime() === getWeekStart(new Date()).getTime()
+  const groupUsers = users.filter(u => u.group === activeGroup)
 
   const renderSection = (period: Period, label: string) => (
     <>
       <tr>
-        <td colSpan={8} className="bg-rose-50 text-rose-700 font-semibold text-sm px-3 py-2 border-b border-rose-100">{label}</td>
+        <td colSpan={8} className="bg-rose-50 text-rose-600 font-semibold text-xs px-3 py-1.5 border-b border-rose-100">
+          {label}
+        </td>
       </tr>
-      {users.map(user => (
+      {groupUsers.map(user => (
         <tr key={`${period}-${user.id}`}>
-          <td className="text-sm font-medium px-3 py-2 border border-gray-200 whitespace-nowrap" style={{ backgroundColor: user.color + '22', borderLeft: `4px solid ${user.color}` }}>
+          <td
+            className="text-sm font-medium px-2 py-2 border border-gray-200 whitespace-nowrap sticky left-0 z-10"
+            style={{ borderLeft: `4px solid ${user.color}`, backgroundColor: user.color + '22' }}
+          >
             {user.name}
           </td>
           {DAYS.map(day => (
@@ -143,66 +145,84 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
   )
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button onClick={prevWeek} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600">←</button>
-          <span className="font-semibold text-gray-800">{formatWeekLabel(currentWeek)}</span>
-          <button onClick={nextWeek} className="p-2 rounded-lg hover:bg-gray-100 text-gray-600">→</button>
-          {isCurrentWeek && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Semana actual</span>}
+    <div className="space-y-3">
+      {/* Week navigation */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <button onClick={prevWeek} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 text-xl font-light">‹</button>
+          <span className="font-semibold text-gray-800 text-sm sm:text-base">{formatWeekLabel(currentWeek)}</span>
+          <button onClick={nextWeek} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 text-xl font-light">›</button>
+          {isCurrentWeek && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Actual</span>}
         </div>
         {editable && schedule && (
           <div className="flex gap-2">
             <button
               onClick={() => setShowSummary(!showSummary)}
-              className="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50"
+              className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-700 hover:bg-gray-50 hidden sm:block"
             >
-              {showSummary ? 'Ocultar resumen' : 'Ver resumen'}
+              {showSummary ? 'Ocultar resumen' : 'Resumen'}
             </button>
             <button
               onClick={handleToggleClose}
               disabled={closing}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                schedule.isClosed
-                  ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
-                  : 'bg-green-600 hover:bg-green-700 text-white'
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                schedule.isClosed ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-green-600 hover:bg-green-700 text-white'
               }`}
             >
-              {closing ? '...' : schedule.isClosed ? 'Reabrir semana' : 'Cerrar y publicar semana'}
+              {closing ? '...' : schedule.isClosed ? 'Reabrir' : 'Publicar semana'}
             </button>
           </div>
         )}
       </div>
 
       {schedule?.isClosed && (
-        <div className="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-lg">Semana publicada — visible para empleados</div>
+        <div className="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-lg">
+          ✓ Semana publicada
+        </div>
       )}
 
+      {/* Group tabs */}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+        {(['BARRA', 'COCINA'] as Group[]).map(g => (
+          <button
+            key={g}
+            onClick={() => setActiveGroup(g)}
+            className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${
+              activeGroup === g ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {g.charAt(0) + g.slice(1).toLowerCase()}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
-        <div className="text-center py-12 text-gray-400">Cargando...</div>
+        <div className="text-center py-12 text-gray-400 text-sm">Cargando...</div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
-          <table className="w-full border-collapse">
+        <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm -mx-3 sm:mx-0">
+          <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-gray-50">
-                <th className="text-left text-xs font-semibold text-gray-500 px-3 py-2 border border-gray-200 min-w-[120px]">Empleado</th>
+                <th className="text-left text-xs font-semibold text-gray-500 px-2 py-2 border border-gray-200 min-w-[90px] sticky left-0 bg-gray-50 z-10">
+                  Empleado
+                </th>
                 {DAYS.map(d => (
-                  <th key={d.key} className="text-xs font-semibold text-gray-500 px-3 py-2 border border-gray-200 min-w-[80px]">{d.label}</th>
+                  <th key={d.key} className="text-xs font-semibold text-gray-500 px-1 py-2 border border-gray-200 min-w-[68px]">
+                    {d.label.slice(0, 3)}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {renderSection('MORNING', 'Mañanas')}
-              <tr><td colSpan={8} className="py-1 bg-gray-50"></td></tr>
+              <tr><td colSpan={8} className="h-2 bg-gray-50" /></tr>
               {renderSection('AFTERNOON', 'Tarde')}
             </tbody>
           </table>
         </div>
       )}
 
-      {showSummary && schedule && (
-        <SummaryTable weekScheduleId={schedule.id} />
-      )}
+      {showSummary && schedule && <SummaryTable weekScheduleId={schedule.id} />}
     </div>
   )
 }

@@ -36,14 +36,20 @@ enum DayOfWeek {
   SUNDAY
 }
 
+enum UserGroup {
+  BARRA
+  COCINA
+}
+
 model User {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   name         String
-  email        String   @unique
+  email        String    @unique
   passwordHash String
-  role         Role     @default(EMPLEADO)
-  color        String   @default("#3B82F6")
-  active       Boolean  @default(true)
+  role         Role      @default(EMPLEADO)
+  color        String    @default("#3B82F6")
+  group        UserGroup @default(BARRA)
+  active       Boolean   @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
