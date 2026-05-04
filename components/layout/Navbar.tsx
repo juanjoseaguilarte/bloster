@@ -2,6 +2,7 @@
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import VersionChecker from '@/components/VersionChecker'
 
 export default function Navbar() {
   const { data: session } = useSession()
@@ -39,10 +40,16 @@ export default function Navbar() {
         </div>
       </div>
       <div className="flex items-center gap-3">
+        {role === 'ADMIN' && (
+          <span className="text-xs text-gray-400 font-mono hidden sm:inline">
+            v{process.env.NEXT_PUBLIC_APP_VERSION || 'dev'}
+          </span>
+        )}
         <span className="text-sm text-gray-500">{session?.user?.name}</span>
         <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{role}</span>
         <button onClick={() => signOut({ callbackUrl: '/login' })} className="text-sm text-gray-500 hover:text-red-600 transition-colors">Salir</button>
       </div>
     </nav>
+    <VersionChecker />
   )
 }
