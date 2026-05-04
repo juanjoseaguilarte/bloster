@@ -13,11 +13,9 @@ export async function GET(req: NextRequest) {
   const weekStart = weekParam ? new Date(weekParam) : getWeekStart(new Date())
 
   const isEmployee = session.user.role === 'EMPLEADO'
-  const now = getWeekStart(new Date())
 
-  if (isEmployee && weekStart < now) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  // Employees can only see closed weeks — no past/future restriction
+  // (timezone differences between client and server make timestamp comparison unreliable)
 
   let schedule = await prisma.weekSchedule.findUnique({
     where: { weekStart },
