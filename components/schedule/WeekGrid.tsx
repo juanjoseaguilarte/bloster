@@ -45,6 +45,7 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
   const [schedule, setSchedule] = useState<WeekSchedule | null>(null)
   const [loading, setLoading] = useState(true)
   const [closing, setClosing] = useState(false)
+  const [copying, setCopying] = useState(false)
   const [showSummary, setShowSummary] = useState(false)
   const [activeGroup, setActiveGroup] = useState<Group>('BARRA')
 
@@ -85,6 +86,28 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
       toast.success('Guardado')
     } else {
       toast.error('Error al guardar')
+    }
+  }
+
+  async function handleCopyPrevWeek() {
+    if (!schedule) return
+    setCopying(true)
+    try {
+      const res = await fetch('/api/schedules/copy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toWeekStart: currentWeek.toISOString() }),
+      })
+      if (res.ok) {
+        const { copied } = await res.json()
+        toast.success(`${copied} turnos copiados de la semana anterior`)
+        fetchSchedule()
+      } else {
+        const err = await res.json()
+        toast.error(err.error || 'Error al copiar')
+      }
+    } finally {
+      setCopying(false)
     }
   }
 
@@ -156,7 +179,15 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
           {isCurrentWeek && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Actual</span>}
         </div>
         {editable && schedule && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap justify-end">
+            <button
+              onClick={handleCopyPrevWeek}
+              disabled={copying}
+              className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              title="Copiar turnos de la semana anterior"
+            >
+              {copying ? '...' : '⎘ Copiar semana anterior'}
+            </button>
             <button
               onClick={() => setShowSummary(!showSummary)}
               className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-700 hover:bg-gray-50 hidden sm:block"
