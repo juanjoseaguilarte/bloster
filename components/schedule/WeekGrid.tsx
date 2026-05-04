@@ -136,6 +136,7 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
               shift={getShift(user.id, day.key, period)}
               userColor={user.color}
               editable={editable}
+              period={period}
               onSave={(type, startTime) => handleSaveShift(user.id, day.key, period, type, startTime)}
             />
           ))}

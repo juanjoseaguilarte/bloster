@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 
 type ShiftType = 'TIME' | 'LIBRE' | 'OFF' | 'IMAGINARY'
+type Period = 'MORNING' | 'AFTERNOON'
 
 interface Shift {
   type: ShiftType
@@ -14,24 +15,33 @@ interface Props {
   shift?: Shift
   userColor: string
   editable: boolean
+  period: Period
   onSave: (type: ShiftType, startTime?: string) => void
 }
 
-export default function ShiftCell({ shift, userColor, editable, onSave }: Props) {
+const QUICK_TIMES: Record<Period, string[]> = {
+  MORNING:   ['12:00', '12:30', '13:00', '13:30', '14:00'],
+  AFTERNOON: ['19:30', '20:00', '20:30', '21:00'],
+}
+
+export default function ShiftCell({ shift, userColor, editable, period, onSave }: Props) {
   const [open, setOpen] = useState(false)
   const [type, setType] = useState<ShiftType>('OFF')
   const [time, setTime] = useState('')
+  const [manual, setManual] = useState(false)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
 
-  // Sync modal state with current shift whenever it opens
   useEffect(() => {
     if (open) {
       setType(shift?.type || 'OFF')
-      setTime(shift?.startTime || '')
+      const t = shift?.startTime || ''
+      setTime(t)
+      // If saved time is not in quick list, open manual mode
+      setManual(t !== '' && !QUICK_TIMES[period].includes(t))
     }
-  }, [open, shift])
+  }, [open, shift, period])
 
   const openModal = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault()
@@ -44,10 +54,12 @@ export default function ShiftCell({ shift, userColor, editable, onSave }: Props)
     setOpen(false)
   }
 
-  const bgStyle = shift?.type === 'LIBRE'
-    ? { backgroundColor: userColor }
-    : {}
+  function selectQuickTime(t: string) {
+    setTime(t)
+    setManual(false)
+  }
 
+  const bgStyle = shift?.type === 'LIBRE' ? { backgroundColor: userColor } : {}
   const bgClass = shift?.type === 'IMAGINARY' ? 'bg-gray-300' : 'bg-white'
   const textClass = shift?.type === 'LIBRE'
     ? 'text-white font-semibold'
@@ -69,6 +81,8 @@ export default function ShiftCell({ shift, userColor, editable, onSave }: Props)
       >
         <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
         <h3 className="font-semibold mb-4 text-gray-800 text-center text-base">Editar turno</h3>
+
+        {/* Shift type selector */}
         <div className="flex gap-2 mb-4">
           {(['OFF', 'TIME', 'LIBRE', 'IMAGINARY'] as ShiftType[]).map(t => (
             <button
@@ -85,14 +99,57 @@ export default function ShiftCell({ shift, userColor, editable, onSave }: Props)
             </button>
           ))}
         </div>
+
+        {/* Time picker — only when type is TIME */}
         {type === 'TIME' && (
-          <input
-            type="time"
-            value={time}
-            onChange={e => setTime(e.target.value)}
-            className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 mb-4 text-sm text-center focus:border-blue-500 outline-none"
-          />
+          <div className="mb-4">
+            {/* Quick time buttons */}
+            <div className="flex flex-wrap gap-2 mb-3">
+              {QUICK_TIMES[period].map(qt => (
+                <button
+                  key={qt}
+                  type="button"
+                  onPointerDown={e => { e.stopPropagation(); selectQuickTime(qt) }}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${
+                    time === qt && !manual
+                      ? 'border-blue-500 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 text-gray-600 bg-white'
+                  }`}
+                >
+                  {qt}
+                </button>
+              ))}
+              <button
+                type="button"
+                onPointerDown={e => { e.stopPropagation(); setManual(true); if (!manual) setTime('') }}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${
+                  manual
+                    ? 'border-blue-500 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 text-gray-600 bg-white'
+                }`}
+              >
+                Manual
+              </button>
+            </div>
+
+            {/* Manual input */}
+            {manual && (
+              <input
+                type="time"
+                value={time}
+                onChange={e => setTime(e.target.value)}
+                className="w-full border-2 border-blue-300 rounded-xl px-3 py-3 text-sm text-center focus:border-blue-500 outline-none"
+                autoFocus
+              />
+            )}
+
+            {/* Selected time preview */}
+            {time && !manual && (
+              <p className="text-center text-blue-600 font-bold text-lg mt-1">{time}</p>
+            )}
+          </div>
         )}
+
         <div className="flex gap-3">
           <button
             type="button"
@@ -104,7 +161,8 @@ export default function ShiftCell({ shift, userColor, editable, onSave }: Props)
           <button
             type="button"
             onPointerDown={e => { e.stopPropagation(); handleSave() }}
-            className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-sm font-semibold"
+            disabled={type === 'TIME' && !time}
+            className="flex-1 py-3 rounded-xl bg-blue-600 text-white text-sm font-semibold disabled:opacity-40"
           >
             Guardar
           </button>
@@ -116,7 +174,7 @@ export default function ShiftCell({ shift, userColor, editable, onSave }: Props)
 
   return (
     <td
-      className={`text-center text-sm py-2 px-1 border border-gray-200 min-w-[80px] select-none ${bgClass} ${textClass} ${editable ? 'cursor-pointer active:opacity-60' : ''}`}
+      className={`text-center text-sm py-2 px-1 border border-gray-200 min-w-[72px] select-none ${bgClass} ${textClass} ${editable ? 'cursor-pointer active:opacity-60' : ''}`}
       style={bgStyle}
       onClick={openModal}
     >
