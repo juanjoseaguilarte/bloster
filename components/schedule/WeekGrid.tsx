@@ -46,7 +46,9 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
   const [loading, setLoading] = useState(true)
   const [closing, setClosing] = useState(false)
   const [copying, setCopying] = useState(false)
+  const [clearing, setClearing] = useState(false)
   const [showSummary, setShowSummary] = useState(false)
+  const [confirmClear, setConfirmClear] = useState(false)
   const [activeGroup, setActiveGroup] = useState<Group>('BARRA')
 
   const fetchSchedule = useCallback(async () => {
@@ -108,6 +110,23 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
       }
     } finally {
       setCopying(false)
+    }
+  }
+
+  async function handleClearWeek() {
+    if (!schedule) return
+    setClearing(true)
+    setConfirmClear(false)
+    try {
+      const res = await fetch(`/api/schedules/${schedule.id}/clear`, { method: 'DELETE' })
+      if (res.ok) {
+        toast.success('Semana borrada')
+        fetchSchedule()
+      } else {
+        toast.error('Error al borrar')
+      }
+    } finally {
+      setClearing(false)
     }
   }
 
@@ -184,9 +203,15 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
               onClick={handleCopyPrevWeek}
               disabled={copying}
               className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-              title="Copiar turnos de la semana anterior"
             >
-              {copying ? '...' : '⎘ Copiar semana anterior'}
+              {copying ? '...' : '⎘ Copiar anterior'}
+            </button>
+            <button
+              onClick={() => setConfirmClear(true)}
+              disabled={clearing}
+              className="px-3 py-1.5 rounded-lg border border-red-200 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+            >
+              {clearing ? '...' : '✕ Borrar semana'}
             </button>
             <button
               onClick={() => setShowSummary(!showSummary)}
@@ -255,6 +280,30 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
       )}
 
       {showSummary && schedule && <SummaryTable weekScheduleId={schedule.id} />}
+
+      {confirmClear && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full text-center">
+            <div className="text-4xl mb-3">🗑️</div>
+            <h3 className="font-bold text-gray-800 text-lg mb-1">¿Borrar semana completa?</h3>
+            <p className="text-gray-500 text-sm mb-5">Se eliminarán todos los turnos de esta semana y quedará despublicada. No se puede deshacer.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmClear(false)}
+                className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-sm text-gray-600 font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleClearWeek}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700"
+              >
+                Sí, borrar todo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
