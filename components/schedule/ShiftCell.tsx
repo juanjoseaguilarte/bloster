@@ -55,8 +55,8 @@ export default function ShiftCell({ shift, userColor, editable, onSave }: Props)
     >
       {label()}
       {open && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={e => { e.stopPropagation(); setOpen(false) }}>
-          <div className="bg-white rounded-xl shadow-xl p-6 w-72" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-4" onClick={e => { e.stopPropagation(); setOpen(false) }}>
+          <div className="bg-white rounded-xl shadow-xl p-5 w-full max-w-sm max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h3 className="font-semibold mb-4 text-gray-800">Editar turno</h3>
             <div className="grid grid-cols-2 gap-2 mb-4">
               {(['OFF', 'TIME', 'LIBRE', 'IMAGINARY'] as ShiftType[]).map(t => (
