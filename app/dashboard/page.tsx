@@ -13,7 +13,7 @@ export default async function DashboardPage() {
   }
 
   const users = await prisma.user.findMany({
-    where: { active: true },
+    where: { active: true, role: 'EMPLEADO' },
     select: { id: true, name: true, color: true, group: true },
     orderBy: { name: 'asc' },
   })
