@@ -43,7 +43,9 @@ export default function ProfilePage() {
             <p className="text-sm text-gray-500">{session?.user?.email}</p>
           </div>
         </div>
-        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{session?.user?.role}</span>
+        {session?.user?.role !== 'EMPLEADO' && (
+          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{session?.user?.role}</span>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">

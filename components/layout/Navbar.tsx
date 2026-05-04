@@ -47,7 +47,9 @@ export default function Navbar() {
           </span>
         )}
         <span className="text-sm text-gray-500">{session?.user?.name}</span>
-        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{role}</span>
+        {role !== 'EMPLEADO' && (
+          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{role}</span>
+        )}
         <button onClick={() => signOut({ callbackUrl: '/login' })} className="text-sm text-gray-500 hover:text-red-600 transition-colors">Salir</button>
       </div>
     </nav>

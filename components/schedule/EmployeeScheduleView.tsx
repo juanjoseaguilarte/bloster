@@ -131,13 +131,13 @@ export default function EmployeeScheduleView({ userId }: { userId: string }) {
                   <div className="flex flex-col gap-2.5">
                     {hasMorning && (
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">Mañana</span>
+                        <span className="text-sm text-gray-400">M</span>
                         <ShiftBadge shift={morning} />
                       </div>
                     )}
                     {hasAfternoon && (
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-400">Tarde</span>
+                        <span className="text-sm text-gray-400">T</span>
                         <ShiftBadge shift={afternoon} />
                       </div>
                     )}
