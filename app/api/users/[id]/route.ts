@@ -30,7 +30,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     data.passwordHash = await bcrypt.hash(body.password, 10)
   }
 
-  if (isAdmin) {
+  const isManagerOrAdmin = isAdmin || session.user.role === 'GESTOR'
+  if (isManagerOrAdmin) {
     if (body.name) data.name = body.name
     if (body.email) data.email = body.email
     if (body.role) {

@@ -58,8 +58,12 @@ export default function UsersClient({ isAdmin }: { isAdmin: boolean }) {
     if (res.ok) { toast.success(u.active ? 'Desactivado' : 'Activado'); fetchUsers() }
   }
 
-  const barraUsers = users.filter(u => u.group === 'BARRA')
-  const cocinaUsers = users.filter(u => u.group === 'COCINA')
+  const [activeTab, setActiveTab] = useState<'active' | 'inactive'>('active')
+
+  const activeUsers = users.filter(u => u.active)
+  const inactiveUsers = users.filter(u => !u.active)
+  const barraUsers = activeUsers.filter(u => u.group === 'BARRA')
+  const cocinaUsers = activeUsers.filter(u => u.group === 'COCINA')
 
   const UserRow = ({ u }: { u: User }) => (
     <tr className="border-t border-gray-100 hover:bg-gray-50">
@@ -116,8 +120,32 @@ export default function UsersClient({ isAdmin }: { isAdmin: boolean }) {
         <button onClick={openCreate} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">+ Nuevo</button>
       </div>
 
-      <GroupTable title="Barra" list={barraUsers} />
-      <GroupTable title="Cocina" list={cocinaUsers} />
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit mb-4">
+        <button
+          onClick={() => setActiveTab('active')}
+          className={`px-5 py-1.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'active' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Activos
+        </button>
+        <button
+          onClick={() => setActiveTab('inactive')}
+          className={`px-5 py-1.5 rounded-lg text-sm font-semibold transition-all relative ${activeTab === 'inactive' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+        >
+          Inactivos
+          {inactiveUsers.length > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">{inactiveUsers.length}</span>
+          )}
+        </button>
+      </div>
+
+      {activeTab === 'active' ? (
+        <>
+          <GroupTable title="Barra" list={barraUsers} />
+          <GroupTable title="Cocina" list={cocinaUsers} />
+        </>
+      ) : (
+        <GroupTable title="Inactivos" list={inactiveUsers} />
+      )}
 
       {showForm && (
         <div className="fixed inset-0 bg-black/40 flex items-end sm:items-center justify-center z-50 p-4">

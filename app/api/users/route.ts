@@ -10,7 +10,6 @@ export async function GET() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
   const users = await prisma.user.findMany({
-    where: { active: true },
     select: { id: true, name: true, email: true, role: true, color: true, group: true, active: true },
     orderBy: { name: 'asc' },
   })
