@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -46,8 +47,8 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  shifts       Shift[]
-  closedWeeks  WeekSchedule[] @relation("ClosedBy")
+  shifts      Shift[]
+  closedWeeks WeekSchedule[] @relation("ClosedBy")
 }
 
 model WeekSchedule {
@@ -60,7 +61,7 @@ model WeekSchedule {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  shifts     Shift[]
+  shifts Shift[]
 }
 
 model Shift {
@@ -74,8 +75,8 @@ model Shift {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
-  user           User         @relation(fields: [userId], references: [id])
-  weekSchedule   WeekSchedule @relation(fields: [weekScheduleId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+  weekSchedule WeekSchedule @relation(fields: [weekScheduleId], references: [id])
 
   @@unique([userId, weekScheduleId, day, period])
 }
