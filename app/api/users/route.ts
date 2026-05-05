@@ -9,7 +9,9 @@ export async function GET() {
   if (!session || !['ADMIN', 'GESTOR'].includes(session.user.role)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
+  const isAdmin = session.user.role === 'ADMIN'
   const users = await prisma.user.findMany({
+    where: isAdmin ? undefined : { role: { not: 'ADMIN' } },
     select: { id: true, name: true, email: true, role: true, color: true, group: true, active: true },
     orderBy: { name: 'asc' },
   })
