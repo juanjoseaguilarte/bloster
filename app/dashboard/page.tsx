@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import WeekGrid from '@/components/schedule/WeekGrid'
 import EmployeeScheduleView from '@/components/schedule/EmployeeScheduleView'
 
+export const dynamic = 'force-dynamic'
+
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
   const isEmployee = session?.user?.role === 'EMPLEADO'

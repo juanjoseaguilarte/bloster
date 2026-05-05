@@ -52,18 +52,24 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
   const [confirmClear, setConfirmClear] = useState(false)
   const [activeGroup, setActiveGroup] = useState<Group>('BARRA')
 
-  const fetchSchedule = useCallback(async () => {
-    setLoading(true)
+  const fetchSchedule = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const res = await fetch(`/api/schedules?week=${currentWeek.toISOString()}`, { cache: 'no-store' })
       if (res.ok) setSchedule(await res.json())
-      else setSchedule(null)
+      else if (!silent) setSchedule(null)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [currentWeek])
 
   useEffect(() => { fetchSchedule() }, [fetchSchedule])
+
+  // Auto-refresco silencioso cada 30 segundos
+  useEffect(() => {
+    const interval = setInterval(() => fetchSchedule(true), 30_000)
+    return () => clearInterval(interval)
+  }, [fetchSchedule])
 
   function prevWeek() {
     const d = new Date(currentWeek); d.setDate(d.getDate() - 7); setCurrentWeek(d)
