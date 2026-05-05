@@ -25,7 +25,7 @@ export default function LoginPage() {
       <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-blue-600">Bloster</h1>
-          <p className="text-gray-500 mt-1 text-sm">Gestión de turnos</p>
+          <p className="text-gray-500 mt-1 text-sm">Mortal Kombat</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
