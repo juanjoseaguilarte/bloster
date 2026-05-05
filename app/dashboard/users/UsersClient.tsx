@@ -79,6 +79,16 @@ export default function UsersClient({ isAdmin }: { isAdmin: boolean }) {
         </span>
       </td>
       <td className="px-3 py-3 text-right whitespace-nowrap">
+        {isAdmin && (
+          <a
+            href={`/dashboard/preview/${u.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-purple-600 text-xs mr-3"
+          >
+            👁 Ver como
+          </a>
+        )}
         <button onClick={() => openEdit(u)} className="text-blue-600 text-xs mr-3">Editar</button>
         <button onClick={() => toggleActive(u)} className="text-gray-400 text-xs">{u.active ? 'Desactivar' : 'Activar'}</button>
       </td>
