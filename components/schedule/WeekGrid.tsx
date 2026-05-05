@@ -51,13 +51,32 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
   const [showSummary, setShowSummary] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
   const [activeGroup, setActiveGroup] = useState<Group>('BARRA')
+  const [showDebug, setShowDebug] = useState(false)
+  const [debugLog, setDebugLog] = useState<string[]>([])
+
+  function addLog(msg: string) {
+    const ts = new Date().toLocaleTimeString('es-ES')
+    setDebugLog(prev => [`[${ts}] ${msg}`, ...prev].slice(0, 50))
+  }
 
   const fetchSchedule = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
+    const url = `/api/schedules?week=${currentWeek.toISOString()}&t=${Date.now()}`
+    addLog(`FETCH ${silent ? '(silent)' : ''} → ${url}`)
     try {
-      const res = await fetch(`/api/schedules?week=${currentWeek.toISOString()}&t=${Date.now()}`, { cache: 'no-store' })
-      if (res.ok) setSchedule(await res.json())
-      else if (!silent) setSchedule(null)
+      const res = await fetch(url, { cache: 'no-store' })
+      addLog(`STATUS ${res.status} ${res.ok ? 'OK' : 'ERROR'}`)
+      if (res.ok) {
+        const data = await res.json()
+        addLog(`scheduleId=${data.id} | isClosed=${data.isClosed} | shifts=${data.shifts?.length ?? 0}`)
+        addLog(`shifts: ${JSON.stringify(data.shifts?.map((s: Shift) => `${s.userId.slice(0,6)}-${s.day}-${s.period}-${s.type}`)) ?? '[]'}`)
+        setSchedule(data)
+      } else {
+        addLog(`ERROR: no se actualizó el schedule`)
+        if (!silent) setSchedule(null)
+      }
+    } catch (e: any) {
+      addLog(`EXCEPCION: ${e?.message}`)
     } finally {
       if (!silent) setLoading(false)
     }
@@ -204,6 +223,14 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
           <button onClick={nextWeek} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 text-xl font-light">›</button>
           {isCurrentWeek && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Actual</span>}
         </div>
+        {editable && (
+          <button
+            onClick={() => setShowDebug(v => !v)}
+            className="px-3 py-1.5 rounded-lg border border-yellow-300 bg-yellow-50 text-xs text-yellow-700 font-mono"
+          >
+            🐛 Debug
+          </button>
+        )}
         {editable && schedule && (
           <div className="flex gap-2 flex-wrap justify-end">
             <button
@@ -309,6 +336,52 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
                 Sí, borrar todo
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Panel de debug */}
+      {showDebug && (
+        <div className="rounded-xl border border-yellow-300 bg-yellow-50 p-3 text-xs font-mono space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-yellow-800">🐛 Debug log</span>
+            <button
+              onClick={() => {
+                const text = [
+                  `=== ESTADO ===`,
+                  `Usuario: ${session?.user?.name} (${session?.user?.role})`,
+                  `Semana (local): ${currentWeek.toLocaleDateString('es-ES')}`,
+                  `Semana (ISO): ${currentWeek.toISOString()}`,
+                  `Schedule ID: ${schedule?.id ?? 'null'}`,
+                  `isClosed: ${schedule?.isClosed}`,
+                  `Shifts totales en schedule: ${schedule?.shifts?.length ?? 0}`,
+                  `Users prop (${users.length}): ${users.map(u => `${u.name}(${u.id.slice(0,6)})`).join(', ')}`,
+                  `Group activo: ${activeGroup}`,
+                  `GroupUsers (${groupUsers.length}): ${groupUsers.map(u => u.name).join(', ')}`,
+                  ``,
+                  `=== LOG ===`,
+                  ...debugLog,
+                ].join('\n')
+                navigator.clipboard.writeText(text).then(() => toast.success('Log copiado'))
+              }}
+              className="px-2 py-1 bg-yellow-700 text-white rounded text-xs"
+            >
+              📋 Copiar todo
+            </button>
+          </div>
+          <div className="bg-white rounded p-2 border border-yellow-200 space-y-0.5">
+            <p><span className="text-gray-500">Usuario:</span> {session?.user?.name} ({session?.user?.role})</p>
+            <p><span className="text-gray-500">Semana ISO:</span> {currentWeek.toISOString()}</p>
+            <p><span className="text-gray-500">Schedule ID:</span> {schedule?.id ?? 'null'}</p>
+            <p><span className="text-gray-500">isClosed:</span> {String(schedule?.isClosed)}</p>
+            <p><span className="text-gray-500">Shifts en memoria:</span> {schedule?.shifts?.length ?? 0}</p>
+            <p><span className="text-gray-500">Users prop:</span> {users.length} ({users.map(u => u.name).join(', ')})</p>
+          </div>
+          <div className="bg-white rounded p-2 border border-yellow-200 max-h-48 overflow-y-auto space-y-0.5">
+            {debugLog.length === 0
+              ? <p className="text-gray-400">Sin entradas aún...</p>
+              : debugLog.map((l, i) => <p key={i} className="text-gray-700 break-all">{l}</p>)
+            }
           </div>
         </div>
       )}
