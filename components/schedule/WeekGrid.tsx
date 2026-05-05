@@ -185,6 +185,13 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
   const isCurrentWeek = currentWeek.getTime() === getWeekStart(new Date()).getTime()
   const groupUsers = users.filter(u => (u.group ?? 'BARRA') === activeGroup)
 
+  function solidLight(hex: string): string {
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+    return `rgb(${Math.round(r + (255 - r) * 0.82)}, ${Math.round(g + (255 - g) * 0.82)}, ${Math.round(b + (255 - b) * 0.82)})`
+  }
+
   const renderSection = (period: Period, label: string) => (
     <>
       <tr>
@@ -195,8 +202,8 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
       {groupUsers.map(user => (
         <tr key={`${period}-${user.id}`}>
           <td
-            className="text-sm font-medium px-2 py-2 border border-gray-200 whitespace-nowrap sticky left-0 z-20 bg-white"
-            style={{ borderLeft: `4px solid ${user.color}` }}
+            className="text-sm font-medium px-2 py-2 border border-gray-200 whitespace-nowrap sticky left-0 z-20"
+            style={{ borderLeft: `4px solid ${user.color}`, backgroundColor: solidLight(user.color) }}
           >
             {user.name}
           </td>
