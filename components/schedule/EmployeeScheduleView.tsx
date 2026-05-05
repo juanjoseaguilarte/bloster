@@ -19,7 +19,7 @@ interface Schedule {
 function ShiftValue({ shift }: { shift?: Shift }) {
   if (!shift || shift.type === 'OFF') return <span className="text-gray-300">—</span>
   if (shift.type === 'LIBRE') return <span className="text-gray-400">—:—</span>
-  if (shift.type === 'IMAGINARY') return <span className="bg-blue-100 text-blue-600 font-bold text-xs px-1.5 py-0.5 rounded-md">I</span>
+  if (shift.type === 'IMAGINARY') return <span className="bg-blue-600 text-white font-bold text-xs px-1.5 py-0.5 rounded-md">de Bloster</span>
   return <span className="text-blue-600 font-bold">{shift.startTime}</span>
 }
 
