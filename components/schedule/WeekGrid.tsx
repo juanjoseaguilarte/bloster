@@ -180,8 +180,10 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
     return schedule?.shifts.find(s => s.userId === userId && s.day === day && s.period === period)
   }
 
+  const isAdmin = session?.user?.role === 'ADMIN'
   const isManagerOrAdmin = ['ADMIN', 'GESTOR'].includes(session?.user?.role || '')
-  const editable = isManagerOrAdmin && !readOnly
+  const isPastWeek = currentWeek.getTime() < getWeekStart(new Date()).getTime()
+  const editable = isManagerOrAdmin && !readOnly && (isAdmin || !isPastWeek)
   const isCurrentWeek = currentWeek.getTime() === getWeekStart(new Date()).getTime()
   const groupUsers = users.filter(u => (u.group ?? 'BARRA') === activeGroup)
 
