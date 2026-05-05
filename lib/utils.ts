@@ -7,11 +7,26 @@ export function getWeekStart(date: Date): Date {
   return d
 }
 
+// Devuelve "YYYY-MM-DD" del lunes en hora LOCAL del dispositivo.
+// Usar siempre esto para comunicarse con la API (evita timezone mismatch).
+export function getWeekKey(weekStart: Date): string {
+  const y = weekStart.getFullYear()
+  const m = String(weekStart.getMonth() + 1).padStart(2, '0')
+  const d = String(weekStart.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+// Parsea una weekKey "YYYY-MM-DD" a Date UTC midnight (igual para todos los timezones).
+export function parseWeekKey(key: string): Date {
+  return new Date(key + 'T00:00:00.000Z')
+}
+
 export function formatWeekLabel(weekStart: Date): string {
   const end = new Date(weekStart)
-  end.setDate(end.getDate() + 6)
-  const fmt = (d: Date) => d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })
-  return `${fmt(weekStart)} - ${fmt(end)}`
+  end.setUTCDate(end.getUTCDate() + 6)
+  const fmt = (d: Date) =>
+    `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}`
+  return `${fmt(weekStart)} – ${fmt(end)}`
 }
 
 export function calcHours(startTime: string, endTime: string): number {

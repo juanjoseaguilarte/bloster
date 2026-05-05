@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/react'
 import ShiftCell from './ShiftCell'
 import SummaryTable from './SummaryTable'
 import ClearHistory from './ClearHistory'
-import { DAYS, getWeekStart, formatWeekLabel } from '@/lib/utils'
+import { DAYS, getWeekStart, getWeekKey, formatWeekLabel } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
 type ShiftType = 'TIME' | 'LIBRE' | 'OFF' | 'IMAGINARY'
@@ -61,7 +61,7 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
 
   const fetchSchedule = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
-    const url = `/api/schedules?week=${currentWeek.toISOString()}&t=${Date.now()}`
+    const url = `/api/schedules?weekKey=${getWeekKey(currentWeek)}&t=${Date.now()}`
     addLog(`FETCH ${silent ? '(silent)' : ''} → ${url}`)
     try {
       const res = await fetch(url, { cache: 'no-store' })
@@ -124,7 +124,7 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
       const res = await fetch('/api/schedules/copy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ toWeekStart: currentWeek.toISOString() }),
+        body: JSON.stringify({ toWeekKey: getWeekKey(currentWeek) }),
       })
       if (res.ok) {
         const { copied } = await res.json()

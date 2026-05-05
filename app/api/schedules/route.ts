@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getWeekStart } from '@/lib/utils'
+import { parseWeekKey } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,13 +11,11 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
-  const weekParam = searchParams.get('week')
-  const weekStart = weekParam ? new Date(weekParam) : getWeekStart(new Date())
+  const weekKey = searchParams.get('weekKey')
+  if (!weekKey) return NextResponse.json({ error: 'Missing weekKey' }, { status: 400 })
 
+  const weekStart = parseWeekKey(weekKey)
   const isEmployee = session.user.role === 'EMPLEADO'
-
-  // Employees can only see closed weeks — no past/future restriction
-  // (timezone differences between client and server make timestamp comparison unreliable)
 
   let schedule = await prisma.weekSchedule.findUnique({
     where: { weekStart },
