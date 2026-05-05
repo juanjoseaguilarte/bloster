@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import ShiftCell from './ShiftCell'
 import SummaryTable from './SummaryTable'
+import MonthlySummary from './MonthlySummary'
 import ClearHistory from './ClearHistory'
 import { DAYS, getWeekStart, getWeekKey, formatWeekLabel } from '@/lib/utils'
 import toast from 'react-hot-toast'
@@ -49,6 +50,7 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
   const [copying, setCopying] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [showSummary, setShowSummary] = useState(false)
+  const [showMonthlySummary, setShowMonthlySummary] = useState(false)
   const [confirmClear, setConfirmClear] = useState(false)
   const [activeGroup, setActiveGroup] = useState<Group>('BARRA')
   const [showDebug, setShowDebug] = useState(false)
@@ -249,12 +251,6 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
             </button>
             <ClearHistory onRestored={fetchSchedule} />
             <button
-              onClick={() => setShowSummary(!showSummary)}
-              className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-700 hover:bg-gray-50 hidden sm:block"
-            >
-              {showSummary ? 'Ocultar resumen' : 'Resumen'}
-            </button>
-            <button
               onClick={handleToggleClose}
               disabled={closing}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
@@ -273,22 +269,46 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
         </div>
       )}
 
-      {/* Group tabs */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
-        {(['BARRA', 'COCINA'] as Group[]).map(g => (
+      {/* Group tabs + summary buttons */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+          {(['BARRA', 'COCINA'] as Group[]).map(g => (
+            <button
+              key={g}
+              onClick={() => { setActiveGroup(g); setShowSummary(false); setShowMonthlySummary(false) }}
+              className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${
+                activeGroup === g && !showSummary && !showMonthlySummary ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {g.charAt(0) + g.slice(1).toLowerCase()}
+            </button>
+          ))}
+        </div>
+        {isManagerOrAdmin && schedule && (
           <button
-            key={g}
-            onClick={() => setActiveGroup(g)}
-            className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${
-              activeGroup === g ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
+            onClick={() => { setShowSummary(v => !v); setShowMonthlySummary(false) }}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              showSummary ? 'bg-white shadow text-gray-900 border border-gray-200' : 'text-gray-500 hover:text-gray-700 bg-gray-100'
             }`}
           >
-            {g.charAt(0) + g.slice(1).toLowerCase()}
+            Resumen
           </button>
-        ))}
+        )}
+        {isManagerOrAdmin && (
+          <button
+            onClick={() => { setShowMonthlySummary(v => !v); setShowSummary(false) }}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              showMonthlySummary ? 'bg-white shadow text-gray-900 border border-gray-200' : 'text-gray-500 hover:text-gray-700 bg-gray-100'
+            }`}
+          >
+            Resumen mensual
+          </button>
+        )}
       </div>
 
-      {loading ? (
+      {showMonthlySummary && <MonthlySummary />}
+
+      {!showMonthlySummary && (loading ? (
         <div className="text-center py-12 text-gray-400 text-sm">Cargando...</div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm -mx-3 sm:mx-0">
@@ -312,7 +332,7 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
             </tbody>
           </table>
         </div>
-      )}
+      ))}
 
       {showSummary && schedule && <SummaryTable weekScheduleId={schedule.id} />}
 
