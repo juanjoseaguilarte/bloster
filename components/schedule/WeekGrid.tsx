@@ -55,7 +55,7 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
   const fetchSchedule = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
-      const res = await fetch(`/api/schedules?week=${currentWeek.toISOString()}`, { cache: 'no-store' })
+      const res = await fetch(`/api/schedules?week=${currentWeek.toISOString()}&t=${Date.now()}`, { cache: 'no-store' })
       if (res.ok) setSchedule(await res.json())
       else if (!silent) setSchedule(null)
     } finally {

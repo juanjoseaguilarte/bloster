@@ -43,5 +43,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Week not published' }, { status: 403 })
   }
 
-  return NextResponse.json(schedule)
+  return NextResponse.json(schedule, {
+    headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
+  })
 }

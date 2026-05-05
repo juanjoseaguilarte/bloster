@@ -38,7 +38,7 @@ export default function EmployeeScheduleView({ userId }: { userId: string }) {
     setStatus('loading')
     setSchedule(null)
     try {
-      const res = await fetch(`/api/schedules?week=${viewing.toISOString()}`)
+      const res = await fetch(`/api/schedules?week=${viewing.toISOString()}&t=${Date.now()}`, { cache: 'no-store' })
       if (res.status === 403) { setStatus('unpublished'); return }
       if (!res.ok) { setStatus('error'); return }
       setSchedule(await res.json())
