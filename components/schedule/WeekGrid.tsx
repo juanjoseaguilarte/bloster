@@ -185,7 +185,7 @@ export default function WeekGrid({ users, readOnly = false, simulatedRole }: Pro
   const isAdmin = effectiveRole === 'ADMIN'
   const isManagerOrAdmin = ['ADMIN', 'GESTOR'].includes(effectiveRole)
   const isPastWeek = currentWeek.getTime() < getWeekStart(new Date()).getTime()
-  const editable = isManagerOrAdmin && !readOnly && (isAdmin || !isPastWeek) && !simulatedRole
+  const editable = isManagerOrAdmin && !readOnly && (isAdmin || !isPastWeek)
   const isCurrentWeek = currentWeek.getTime() === getWeekStart(new Date()).getTime()
   const groupUsers = users.filter(u => (u.group ?? 'BARRA') === activeGroup)
 
