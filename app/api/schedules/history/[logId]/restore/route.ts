@@ -26,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: { logId: stri
     schedule = await prisma.weekSchedule.create({ data: { weekStart: log.weekStart } })
   }
 
-  const shifts = log.shifts as ShiftSnapshot[]
+  const shifts = log.shifts as unknown as ShiftSnapshot[]
 
   // Restaurar los turnos con upsert (no machaca los que ya existan)
   await Promise.all(
