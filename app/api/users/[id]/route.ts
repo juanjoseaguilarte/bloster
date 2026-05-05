@@ -11,8 +11,21 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const body = await req.json()
   const isSelf = session.user.id === params.id
   const isAdmin = session.user.role === 'ADMIN'
+  const isGestor = session.user.role === 'GESTOR'
 
-  if (!isSelf && !isAdmin) {
+  // Fetch target user role to enforce edit restrictions
+  const targetUser = await prisma.user.findUnique({ where: { id: params.id }, select: { role: true } })
+  if (!targetUser) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  const targetIsAdmin = targetUser.role === 'ADMIN'
+
+  // GESTORs and EMPLEADOs cannot edit ADMIN profiles
+  if (targetIsAdmin && !isAdmin) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  // Only ADMIN or GESTOR can edit other users; employees can only edit themselves
+  if (!isSelf && !isAdmin && !isGestor) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -30,8 +43,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     data.passwordHash = await bcrypt.hash(body.password, 10)
   }
 
-  const isManagerOrAdmin = isAdmin || session.user.role === 'GESTOR'
-  if (isManagerOrAdmin) {
+  if (isAdmin || isGestor) {
     if (body.name) data.name = body.name
     if (body.email) data.email = body.email
     if (body.role) {
