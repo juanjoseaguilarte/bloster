@@ -53,8 +53,9 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  shifts      Shift[]
-  closedWeeks WeekSchedule[] @relation("ClosedBy")
+  shifts         Shift[]
+  closedWeeks    WeekSchedule[]  @relation("ClosedBy")
+  clearedWeeks   WeekClearLog[]  @relation("ClearedBy")
 }
 
 model WeekSchedule {
@@ -91,4 +92,13 @@ model Config {
   id    String @id @default(cuid())
   key   String @unique
   value String
+}
+
+model WeekClearLog {
+  id          String   @id @default(cuid())
+  weekStart   DateTime
+  clearedAt   DateTime @default(now())
+  clearedById String?
+  clearedBy   User?    @relation("ClearedBy", fields: [clearedById], references: [id])
+  shifts      Json
 }

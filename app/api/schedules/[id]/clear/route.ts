@@ -9,11 +9,33 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  const schedule = await prisma.weekSchedule.findUnique({
+    where: { id: params.id },
+    include: { shifts: true },
+  })
+  if (!schedule) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // Guardar snapshot antes de borrar para poder restaurar después
+  if (schedule.shifts.length > 0) {
+    await prisma.weekClearLog.create({
+      data: {
+        weekStart: schedule.weekStart,
+        clearedById: session.user.id,
+        shifts: schedule.shifts.map(s => ({
+          userId: s.userId,
+          day: s.day,
+          period: s.period,
+          type: s.type,
+          startTime: s.startTime ?? null,
+        })),
+      },
+    })
+  }
+
   const { count } = await prisma.shift.deleteMany({
     where: { weekScheduleId: params.id },
   })
 
-  // Also reopen the week if it was closed
   await prisma.weekSchedule.update({
     where: { id: params.id },
     data: { isClosed: false, closedAt: null, closedById: null },

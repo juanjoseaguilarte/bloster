@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import ShiftCell from './ShiftCell'
 import SummaryTable from './SummaryTable'
+import ClearHistory from './ClearHistory'
 import { DAYS, getWeekStart, formatWeekLabel } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
@@ -213,6 +214,7 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
             >
               {clearing ? '...' : '✕ Borrar semana'}
             </button>
+            <ClearHistory onRestored={fetchSchedule} />
             <button
               onClick={() => setShowSummary(!showSummary)}
               className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-700 hover:bg-gray-50 hidden sm:block"
