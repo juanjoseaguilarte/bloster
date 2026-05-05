@@ -34,8 +34,29 @@ export async function POST() {
     if (!existing) {
       await prisma.weekSchedule.update({ where: { id: sched.id }, data: { weekStart: normalized } })
     } else {
-      // Fusionar: mover shifts al schedule ya normalizado, borrar el duplicado
-      await prisma.shift.updateMany({ where: { weekScheduleId: sched.id }, data: { weekScheduleId: existing.id } })
+      // Fusionar: upsert shift a shift para respetar unique constraint, luego borrar el duplicado
+      for (const shift of sched.shifts) {
+        await prisma.shift.upsert({
+          where: {
+            userId_weekScheduleId_day_period: {
+              userId: shift.userId,
+              weekScheduleId: existing.id,
+              day: shift.day,
+              period: shift.period,
+            },
+          },
+          update: { type: shift.type, startTime: shift.startTime },
+          create: {
+            userId: shift.userId,
+            weekScheduleId: existing.id,
+            day: shift.day,
+            period: shift.period,
+            type: shift.type,
+            startTime: shift.startTime,
+          },
+        })
+      }
+      await prisma.shift.deleteMany({ where: { weekScheduleId: sched.id } })
       await prisma.weekSchedule.delete({ where: { id: sched.id } })
     }
     updated++
