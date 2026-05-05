@@ -3,6 +3,7 @@ import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import VersionChecker from '@/components/VersionChecker'
+import QRModal from '@/components/QRModal'
 
 export default function Navbar() {
   const { data: session } = useSession()
@@ -46,6 +47,7 @@ export default function Navbar() {
             v{process.env.NEXT_PUBLIC_APP_VERSION || 'dev'}
           </span>
         )}
+        {isStaff && <QRModal />}
         <span className="text-sm text-gray-500">{session?.user?.name}</span>
         {role !== 'EMPLEADO' && (
           <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{role}</span>
