@@ -195,8 +195,8 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
       {groupUsers.map(user => (
         <tr key={`${period}-${user.id}`}>
           <td
-            className="text-sm font-medium px-2 py-2 border border-gray-200 whitespace-nowrap sticky left-0 z-10"
-            style={{ borderLeft: `4px solid ${user.color}`, backgroundColor: user.color + '22' }}
+            className="text-sm font-medium px-2 py-2 border border-gray-200 whitespace-nowrap sticky left-0 z-20 bg-white"
+            style={{ borderLeft: `4px solid ${user.color}` }}
           >
             {user.name}
           </td>
@@ -315,7 +315,7 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="bg-gray-50">
-                <th className="text-left text-xs font-semibold text-gray-500 px-2 py-2 border border-gray-200 min-w-[90px] sticky left-0 bg-gray-50 z-10">
+                <th className="text-left text-xs font-semibold text-gray-500 px-2 py-2 border border-gray-200 min-w-[90px] sticky left-0 bg-gray-50 z-30">
                   Empleado
                 </th>
                 {DAYS.map(d => (
