@@ -101,39 +101,41 @@ export default function EmployeeScheduleView({ userId }: { userId: string }) {
       )}
 
       {status === 'ok' && (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-          {/* Column headers */}
-          <div className="grid grid-cols-3 border-b border-gray-100 bg-gray-50 px-4 py-2">
-            <span className="text-xs font-semibold text-gray-400"></span>
-            <span className="text-xs font-semibold text-gray-500 text-center">M</span>
-            <span className="text-xs font-semibold text-gray-500 text-center">T</span>
+        <>
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            {/* Column headers */}
+            <div className="grid grid-cols-3 border-b border-gray-100 bg-gray-50 px-4 py-2">
+              <span className="text-xs font-semibold text-gray-400"></span>
+              <span className="text-xs font-semibold text-gray-500 text-center">M</span>
+              <span className="text-xs font-semibold text-gray-500 text-center">T</span>
+            </div>
+
+            {/* Day rows */}
+            {DAYS.map((day, i) => {
+              const morning = getShift(day.key, 'MORNING')
+              const afternoon = getShift(day.key, 'AFTERNOON')
+              const isLast = i === DAYS.length - 1
+
+              return (
+                <div
+                  key={day.key}
+                  className={`grid grid-cols-3 items-center px-4 py-3 ${!isLast ? 'border-b border-gray-100' : ''}`}
+                >
+                  <span className="text-sm font-semibold text-gray-700">{day.label}</span>
+                  <div className="text-sm text-center">
+                    <ShiftValue shift={morning} />
+                  </div>
+                  <div className="text-sm text-center">
+                    <ShiftValue shift={afternoon} />
+                  </div>
+                </div>
+              )
+            })}
           </div>
-
-          {/* Day rows */}
-          {DAYS.map((day, i) => {
-            const morning = getShift(day.key, 'MORNING')
-            const afternoon = getShift(day.key, 'AFTERNOON')
-            const isLast = i === DAYS.length - 1
-
-            return (
-              <div
-                key={day.key}
-                className={`grid grid-cols-3 items-center px-4 py-3 ${!isLast ? 'border-b border-gray-100' : ''}`}
-              >
-                <span className="text-sm font-semibold text-gray-700">{day.label}</span>
-                <div className="text-sm text-center">
-                  <ShiftValue shift={morning} />
-                </div>
-                <div className="text-sm text-center">
-                  <ShiftValue shift={afternoon} />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-        <p className="text-center text-xs text-gray-400 mt-3 px-4">
-          🚧 Aplicación en pruebas · Los datos mostrados son de ejemplo
-        </p>
+          <p className="text-center text-xs text-gray-400 mt-3 px-4">
+            🚧 Aplicación en pruebas · Los datos mostrados son de ejemplo
+          </p>
+        </>
       )}
     </div>
   )
