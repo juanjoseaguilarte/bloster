@@ -1,9 +1,36 @@
 'use client'
 import { useSession, signOut } from 'next-auth/react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import VersionChecker from '@/components/VersionChecker'
 import QRModal from '@/components/QRModal'
+
+function NormalizeButton() {
+  const [status, setStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle')
+  const [result, setResult] = useState('')
+
+  async function run() {
+    setStatus('running')
+    try {
+      const res = await fetch('/api/admin/normalize-weeks', { method: 'POST' })
+      const data = await res.json()
+      setResult(`✓ ${data.schedulesNormalized} semanas normalizadas`)
+      setStatus('done')
+    } catch {
+      setStatus('error')
+      setResult('Error')
+    }
+  }
+
+  if (status === 'idle') return (
+    <button onClick={run} className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-lg font-semibold">
+      🔧 Sync BD
+    </button>
+  )
+  if (status === 'running') return <span className="text-xs text-gray-400">Sincronizando...</span>
+  return <span className="text-xs text-green-600 font-semibold">{result}</span>
+}
 
 export default function Navbar() {
   const { data: session } = useSession()
@@ -47,6 +74,7 @@ export default function Navbar() {
             v{process.env.NEXT_PUBLIC_APP_VERSION || 'dev'}
           </span>
         )}
+        {role === 'ADMIN' && <NormalizeButton />}
         {isStaff && <QRModal />}
         <span className="text-sm text-gray-500">{session?.user?.name}</span>
         {role !== 'EMPLEADO' && (
