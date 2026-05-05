@@ -131,6 +131,9 @@ export default function EmployeeScheduleView({ userId }: { userId: string }) {
             )
           })}
         </div>
+        <p className="text-center text-xs text-gray-400 mt-3 px-4">
+          🚧 Aplicación en pruebas · Los datos mostrados son de ejemplo
+        </p>
       )}
     </div>
   )
