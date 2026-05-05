@@ -18,8 +18,8 @@ interface Schedule {
 
 function ShiftValue({ shift }: { shift?: Shift }) {
   if (!shift || shift.type === 'OFF') return <span className="text-gray-300">—</span>
-  if (shift.type === 'LIBRE') return <span className="text-orange-500 font-semibold">Libre</span>
-  if (shift.type === 'IMAGINARY') return <span className="text-gray-400 font-medium">Imag.</span>
+  if (shift.type === 'LIBRE') return <span className="text-gray-400">—:—</span>
+  if (shift.type === 'IMAGINARY') return <span className="text-purple-500 font-bold">I</span>
   return <span className="text-blue-600 font-bold">{shift.startTime}</span>
 }
 
