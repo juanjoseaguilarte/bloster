@@ -39,9 +39,10 @@ interface User {
 interface Props {
   users: User[]
   readOnly?: boolean
+  simulatedRole?: 'GESTOR' | 'ADMIN'
 }
 
-export default function WeekGrid({ users, readOnly = false }: Props) {
+export default function WeekGrid({ users, readOnly = false, simulatedRole }: Props) {
   const { data: session } = useSession()
   const [currentWeek, setCurrentWeek] = useState(() => getWeekStart(new Date()))
   const [schedule, setSchedule] = useState<WeekSchedule | null>(null)
@@ -180,10 +181,11 @@ export default function WeekGrid({ users, readOnly = false }: Props) {
     return schedule?.shifts.find(s => s.userId === userId && s.day === day && s.period === period)
   }
 
-  const isAdmin = session?.user?.role === 'ADMIN'
-  const isManagerOrAdmin = ['ADMIN', 'GESTOR'].includes(session?.user?.role || '')
+  const effectiveRole = simulatedRole ?? session?.user?.role ?? ''
+  const isAdmin = effectiveRole === 'ADMIN'
+  const isManagerOrAdmin = ['ADMIN', 'GESTOR'].includes(effectiveRole)
   const isPastWeek = currentWeek.getTime() < getWeekStart(new Date()).getTime()
-  const editable = isManagerOrAdmin && !readOnly && (isAdmin || !isPastWeek)
+  const editable = isManagerOrAdmin && !readOnly && (isAdmin || !isPastWeek) && !simulatedRole
   const isCurrentWeek = currentWeek.getTime() === getWeekStart(new Date()).getTime()
   const groupUsers = users.filter(u => (u.group ?? 'BARRA') === activeGroup)
 

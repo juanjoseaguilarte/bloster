@@ -50,7 +50,7 @@ export default async function PreviewPage({ params }: { params: { userId: string
         ) : (
           <div>
             <h1 className="text-xl font-bold text-gray-800 mb-4">Cuadrante semanal</h1>
-            <WeekGrid users={gridUsers} readOnly={false} />
+            <WeekGrid users={gridUsers} readOnly={false} simulatedRole={user.role as 'GESTOR' | 'ADMIN'} />
           </div>
         )}
       </div>
