@@ -12,7 +12,7 @@ export async function GET() {
   const isAdmin = session.user.role === 'ADMIN'
   const users = await prisma.user.findMany({
     where: isAdmin ? undefined : { role: { not: 'ADMIN' } },
-    select: { id: true, name: true, email: true, role: true, color: true, group: true, active: true },
+    select: { id: true, name: true, email: true, role: true, color: true, group: true, active: true, lastLoginAt: true },
     orderBy: { name: 'asc' },
   })
   return NextResponse.json(users)
