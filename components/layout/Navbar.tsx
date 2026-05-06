@@ -1,5 +1,6 @@
 'use client'
 import { useSession, signOut } from 'next-auth/react'
+import { useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import VersionChecker from '@/components/VersionChecker'
@@ -7,6 +8,12 @@ import QRModal from '@/components/QRModal'
 
 export default function Navbar() {
   const { data: session } = useSession()
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetch('/api/ping', { method: 'POST' })
+    }
+  }, [session?.user?.id])
   const pathname = usePathname()
   const role = session?.user?.role
   const isStaff = ['ADMIN', 'GESTOR'].includes(role || '')
