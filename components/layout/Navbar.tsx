@@ -1,10 +1,39 @@
 'use client'
 import { useSession, signOut } from 'next-auth/react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import VersionChecker from '@/components/VersionChecker'
 import QRModal from '@/components/QRModal'
+import toast from 'react-hot-toast'
+
+function TestPushButton() {
+  const [loading, setLoading] = useState(false)
+
+  async function send() {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/push/test', { method: 'POST' })
+      const data = await res.json()
+      if (data.total === 0) toast.error('No hay suscriptores aún')
+      else toast.success(`Push enviado a ${data.sent}/${data.total}`)
+    } catch {
+      toast.error('Error al enviar')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <button
+      onClick={send}
+      disabled={loading}
+      className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-lg font-semibold disabled:opacity-50"
+    >
+      {loading ? '...' : '🔔 Test push'}
+    </button>
+  )
+}
 
 export default function Navbar() {
   const { data: session } = useSession()
@@ -42,6 +71,7 @@ export default function Navbar() {
                 v{process.env.NEXT_PUBLIC_APP_VERSION || 'dev'}
               </span>
             )}
+            {role === 'ADMIN' && <TestPushButton />}
             {isStaff && <QRModal />}
             <span className="text-sm text-gray-600 font-medium">{session?.user?.name}</span>
             {role !== 'EMPLEADO' && (
