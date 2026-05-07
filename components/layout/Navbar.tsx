@@ -14,6 +14,7 @@ export default function Navbar() {
       fetch('/api/ping', { method: 'POST' })
     }
   }, [session?.user?.id])
+
   const pathname = usePathname()
   const role = session?.user?.role
   const isStaff = ['ADMIN', 'GESTOR'].includes(role || '')
@@ -31,38 +32,48 @@ export default function Navbar() {
 
   return (
     <>
-    <nav className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-      <div className="flex items-center gap-6">
-        <span className="font-bold text-blue-600 text-lg">Bloster</span>
-        <div className="flex gap-1">
+      <nav className="bg-white border-b border-gray-200">
+        {/* Fila superior: logo + usuario */}
+        <div className="px-4 sm:px-6 h-12 flex items-center justify-between">
+          <span className="font-bold text-blue-600 text-lg">Bloster</span>
+          <div className="flex items-center gap-2 sm:gap-3">
+            {role === 'ADMIN' && (
+              <span className="text-xs text-gray-400 font-mono hidden sm:inline">
+                v{process.env.NEXT_PUBLIC_APP_VERSION || 'dev'}
+              </span>
+            )}
+            {isStaff && <QRModal />}
+            <span className="text-sm text-gray-600 font-medium">{session?.user?.name}</span>
+            {role !== 'EMPLEADO' && (
+              <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full hidden sm:inline">{role}</span>
+            )}
+            <button
+              onClick={() => signOut({ callbackUrl: '/login' })}
+              className="text-sm text-gray-400 hover:text-red-600 transition-colors"
+            >
+              Salir
+            </button>
+          </div>
+        </div>
+
+        {/* Fila inferior: links de navegación */}
+        <div className="px-4 sm:px-6 flex gap-1 border-t border-gray-100">
           {links.map(l => (
             <Link
               key={l.href}
               href={l.href}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                pathname === l.href ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+              className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                pathname === l.href
+                  ? 'border-blue-600 text-blue-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-800'
               }`}
             >
               {l.label}
             </Link>
           ))}
         </div>
-      </div>
-      <div className="flex items-center gap-3">
-        {role === 'ADMIN' && (
-          <span className="text-xs text-gray-400 font-mono hidden sm:inline">
-            v{process.env.NEXT_PUBLIC_APP_VERSION || 'dev'}
-          </span>
-        )}
-        {isStaff && <QRModal />}
-        <span className="text-sm text-gray-500">{session?.user?.name}</span>
-        {role !== 'EMPLEADO' && (
-          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{role}</span>
-        )}
-        <button onClick={() => signOut({ callbackUrl: '/login' })} className="text-sm text-gray-500 hover:text-red-600 transition-colors">Salir</button>
-      </div>
-    </nav>
-    <VersionChecker />
+      </nav>
+      <VersionChecker />
     </>
   )
 }
