@@ -16,3 +16,17 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   return NextResponse.json(payroll)
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions)
+  if (!session || session.user.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const payroll = await prisma.monthlyPayroll.update({
+    where: { id: params.id },
+    data: { status: 'DRAFT', paidAt: null, paidById: null },
+  })
+
+  return NextResponse.json(payroll)
+}

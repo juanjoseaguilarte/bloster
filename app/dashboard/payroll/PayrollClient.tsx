@@ -102,17 +102,21 @@ interface RowVals {
 
 function PayrollRow({
   user,
+  isAdmin,
   onRefresh,
   onOpenModal,
   onConfig,
   onPay,
+  onUnpay,
   paying,
 }: {
   user: UserRow
+  isAdmin: boolean
   onRefresh: () => void
   onOpenModal: (user: UserRow) => void
   onConfig: (user: UserRow) => void
   onPay: (p: Payroll) => void
+  onUnpay: (p: Payroll) => void
   paying: string | null
 }) {
   const p = user.payrolls[0]
@@ -290,6 +294,15 @@ function PayrollRow({
             ✓ Pagar
           </button>
         )}
+        {p && isPaid && isAdmin && (
+          <button
+            onClick={() => onUnpay(p)}
+            disabled={paying === p.id}
+            className="text-xs text-red-400 hover:text-red-600 disabled:opacity-50"
+          >
+            Anular
+          </button>
+        )}
       </td>
     </tr>
   )
@@ -347,6 +360,18 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
     }
   }
 
+  async function handleUnpay(payroll: Payroll) {
+    if (!payroll.id) return
+    setPayingId(payroll.id)
+    try {
+      const res = await fetch(`/api/salary/payroll/${payroll.id}/pay`, { method: 'DELETE' })
+      if (res.ok) { toast.success('Pago anulado'); fetchData() }
+      else toast.error('Error')
+    } finally {
+      setPayingId(null)
+    }
+  }
+
   function openModal(user: UserRow) {
     const suggested = user.suggested ?? 0
     const payroll: Payroll = {
@@ -398,10 +423,12 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
                   <PayrollRow
                     key={user.id}
                     user={user}
+                    isAdmin={isAdmin}
                     onRefresh={fetchData}
                     onOpenModal={openModal}
                     onConfig={u => setConfigUser(u)}
                     onPay={handlePay}
+                    onUnpay={handleUnpay}
                     paying={paying}
                   />
                 ))}
