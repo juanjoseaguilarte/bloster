@@ -41,8 +41,18 @@ export default function PayrollModal({ payroll, userName, onClose, onSaved }: Pr
   const garnN = parseFloat(garnishments) || 0
   const transferN = parseFloat(transfer) || 0
   const cashN = parseFloat(cash) || 0
-  const net = baseN - advN - garnN
-  const splitDiff = net - transferN - cashN
+  const net = +(baseN - advN - garnN).toFixed(2)
+  const splitDiff = +(net - transferN - cashN).toFixed(2)
+
+  // Recalcula efectivo cuando cambia el neto (manteniendo la transferencia fija)
+  function handleNetChange(newBase: string, newAdv: string, newGarn: string) {
+    const b = parseFloat(newBase) || 0
+    const a = parseFloat(newAdv) || 0
+    const g = parseFloat(newGarn) || 0
+    const newNet = +(b - a - g).toFixed(2)
+    const t = parseFloat(transfer) || 0
+    setCash(String(+(newNet - t).toFixed(2)))
+  }
 
   async function handleSave() {
     setSaving(true)
@@ -84,17 +94,17 @@ export default function PayrollModal({ payroll, userName, onClose, onSaved }: Pr
         <div className="space-y-3">
           <div>
             <label className="text-xs font-medium text-gray-600 mb-1 block">Sueldo pactado (€)</label>
-            <input type="number" value={base} onChange={e => setBase(e.target.value)}
+            <input type="number" value={base} onChange={e => { setBase(e.target.value); handleNetChange(e.target.value, advances, garnishments) }}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
             <label className="text-xs font-medium text-gray-600 mb-1 block">Adelantos a descontar (€)</label>
-            <input type="number" value={advances} onChange={e => setAdvances(e.target.value)}
+            <input type="number" value={advances} onChange={e => { setAdvances(e.target.value); handleNetChange(base, e.target.value, garnishments) }}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
             <label className="text-xs font-medium text-gray-600 mb-1 block">Embargos (€)</label>
-            <input type="number" value={garnishments} onChange={e => setGarnishments(e.target.value)}
+            <input type="number" value={garnishments} onChange={e => { setGarnishments(e.target.value); handleNetChange(base, advances, e.target.value) }}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 
@@ -108,13 +118,29 @@ export default function PayrollModal({ payroll, userName, onClose, onSaved }: Pr
             <p className="text-xs font-semibold text-gray-500 mb-2">Reparto del pago</p>
             <div>
               <label className="text-xs font-medium text-gray-600 mb-1 block">Nómina transferencia (€)</label>
-              <input type="number" value={transfer} onChange={e => setTransfer(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input
+                type="number"
+                value={transfer}
+                onChange={e => {
+                  setTransfer(e.target.value)
+                  const t = parseFloat(e.target.value) || 0
+                  setCash(String(+(net - t).toFixed(2)))
+                }}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
             <div className="mt-2">
-              <label className="text-xs font-medium text-gray-600 mb-1 block">Pagar efectivo (€)</label>
-              <input type="number" value={cash} onChange={e => setCash(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <label className="text-xs font-medium text-gray-600 mb-1 block">Pagar efectivo (€) <span className="text-gray-400 font-normal">— calculado automáticamente</span></label>
+              <input
+                type="number"
+                value={cash}
+                onChange={e => {
+                  setCash(e.target.value)
+                  const c = parseFloat(e.target.value) || 0
+                  setTransfer(String(+(net - c).toFixed(2)))
+                }}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-blue-50"
+              />
             </div>
             {Math.abs(splitDiff) > 0.01 && (
               <p className="text-xs text-amber-600 mt-1">
