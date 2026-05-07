@@ -57,6 +57,17 @@ model User {
   shifts         Shift[]
   closedWeeks    WeekSchedule[]  @relation("ClosedBy")
   clearedWeeks   WeekClearLog[]  @relation("ClearedBy")
+  pushSubs       PushSubscription[]
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
 }
 
 model WeekSchedule {
