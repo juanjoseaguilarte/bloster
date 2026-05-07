@@ -41,6 +41,17 @@ enum UserGroup {
   COCINA
 }
 
+enum SalaryType {
+  FIXED
+  PER_SHIFT
+  MIXED
+}
+
+enum PayrollStatus {
+  DRAFT
+  PAID
+}
+
 model User {
   id           String    @id @default(cuid())
   name         String
@@ -55,9 +66,48 @@ model User {
   updatedAt    DateTime @updatedAt
 
   shifts         Shift[]
-  closedWeeks    WeekSchedule[]  @relation("ClosedBy")
-  clearedWeeks   WeekClearLog[]  @relation("ClearedBy")
+  closedWeeks    WeekSchedule[]   @relation("ClosedBy")
+  clearedWeeks   WeekClearLog[]   @relation("ClearedBy")
   pushSubs       PushSubscription[]
+  salaryConfig   SalaryConfig?
+  payrolls       MonthlyPayroll[]
+  payrollsPaid   MonthlyPayroll[] @relation("PayrollPaidBy")
+}
+
+model SalaryConfig {
+  id            String     @id @default(cuid())
+  userId        String     @unique
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          SalaryType @default(FIXED)
+  fixedAmount   Float?
+  morningRate   Float?
+  afternoonRate Float?
+  imaginaryRate Float?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+model MonthlyPayroll {
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id])
+  year           Int
+  month          Int
+  baseAmount     Float
+  advances       Float         @default(0)
+  garnishments   Float         @default(0)
+  netAmount      Float
+  transferAmount Float         @default(0)
+  cashAmount     Float         @default(0)
+  notes          String?
+  status         PayrollStatus @default(DRAFT)
+  paidAt         DateTime?
+  paidById       String?
+  paidBy         User?         @relation("PayrollPaidBy", fields: [paidById], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([userId, year, month])
 }
 
 model PushSubscription {

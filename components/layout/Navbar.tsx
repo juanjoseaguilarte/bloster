@@ -52,6 +52,7 @@ export default function Navbar() {
     ? [
         { href: '/dashboard', label: 'Blosters' },
         { href: '/dashboard/users', label: 'Empleados' },
+        { href: '/dashboard/payroll', label: 'Sueldos' },
         { href: '/dashboard/profile', label: 'Mi perfil' },
       ]
     : [

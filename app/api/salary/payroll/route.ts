@@ -1,0 +1,61 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+
+export const dynamic = 'force-dynamic'
+
+export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session || !['ADMIN', 'GESTOR'].includes(session.user.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const { searchParams } = new URL(req.url)
+  const year = parseInt(searchParams.get('year') || '')
+  const month = parseInt(searchParams.get('month') || '')
+  if (isNaN(year) || isNaN(month)) {
+    return NextResponse.json({ error: 'Missing year/month' }, { status: 400 })
+  }
+
+  // Usuarios activos + inactivos con nómina en algún mes
+  const users = await prisma.user.findMany({
+    where: {
+      OR: [
+        { active: true },
+        { payrolls: { some: {} } },
+      ],
+    },
+    select: {
+      id: true, name: true, color: true, group: true, active: true,
+      salaryConfig: true,
+      payrolls: {
+        where: { year, month },
+      },
+    },
+    orderBy: { name: 'asc' },
+  })
+
+  return NextResponse.json(users)
+}
+
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session || !['ADMIN', 'GESTOR'].includes(session.user.role)) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const { userId, year, month, baseAmount, advances, garnishments, transferAmount, cashAmount, notes } = await req.json()
+  const net = baseAmount - advances - garnishments
+
+  const payroll = await prisma.monthlyPayroll.create({
+    data: {
+      userId, year, month,
+      baseAmount, advances, garnishments,
+      netAmount: net,
+      transferAmount, cashAmount, notes,
+    },
+  })
+
+  return NextResponse.json(payroll, { status: 201 })
+}
