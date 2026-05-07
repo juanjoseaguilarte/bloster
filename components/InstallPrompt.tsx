@@ -1,49 +1,57 @@
 'use client'
 import { useState, useEffect } from 'react'
 
-type Platform = 'android' | 'ios' | 'desktop' | null
+// Persiste el evento entre re-renders y navegaciones de la misma sesión
+let savedPrompt: any = null
+
+function detectPlatform(): 'ios' | 'android' | 'desktop' {
+  const ua = navigator.userAgent
+  if (/iphone|ipad|ipod/i.test(ua)) return 'ios'
+  if (/android/i.test(ua)) return 'android'
+  return 'desktop'
+}
 
 export default function InstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
-  const [platform, setPlatform] = useState<Platform>(null)
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(savedPrompt)
   const [showModal, setShowModal] = useState(false)
   const [visible, setVisible] = useState(false)
+  const [platform, setPlatform] = useState<'ios' | 'android' | 'desktop'>('desktop')
 
   useEffect(() => {
+    // Ya instalada en standalone → no mostrar
     if (window.matchMedia('(display-mode: standalone)').matches) return
+    // Usuario descartó en este dispositivo → no mostrar
     if (localStorage.getItem('pwa-install-dismissed')) return
 
-    const ua = navigator.userAgent
-    const isIOS = /iphone|ipad|ipod/i.test(ua)
-    const isAndroid = /android/i.test(ua)
+    const p = detectPlatform()
+    setPlatform(p)
+    setVisible(true)
 
-    if (isIOS) {
-      setPlatform('ios')
-      setVisible(true)
-      return
-    }
-
+    // Capturar prompt nativo (Android/Chrome desktop)
     const handler = (e: Event) => {
       e.preventDefault()
+      savedPrompt = e
       setDeferredPrompt(e)
-      setPlatform(isAndroid ? 'android' : 'desktop')
-      setVisible(true)
     }
     window.addEventListener('beforeinstallprompt', handler)
     return () => window.removeEventListener('beforeinstallprompt', handler)
   }, [])
 
   async function handleClick() {
-    if (platform === 'ios' || (platform === 'desktop' && !deferredPrompt)) {
-      setShowModal(true)
-      return
-    }
+    // Android/desktop con prompt nativo disponible → instalar directamente
     if (deferredPrompt) {
       deferredPrompt.prompt()
       const { outcome } = await deferredPrompt.userChoice
-      if (outcome === 'accepted') setVisible(false)
+      if (outcome === 'accepted') {
+        setVisible(false)
+        savedPrompt = null
+      }
       setDeferredPrompt(null)
+      savedPrompt = null
+      return
     }
+    // Sin prompt nativo → mostrar instrucciones
+    setShowModal(true)
   }
 
   function dismiss() {
@@ -66,48 +74,61 @@ export default function InstallPrompt() {
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[9999] p-4">
           <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+
             {platform === 'ios' && (
               <>
-                <div className="text-3xl mb-3 text-center">📱</div>
+                <div className="text-4xl mb-3 text-center">📱</div>
                 <h3 className="font-bold text-gray-800 text-lg mb-1 text-center">Instalar en iPhone / iPad</h3>
-                <p className="text-gray-500 text-xs text-center mb-4">Ábrelo en <strong>Safari</strong> si aún no lo has hecho</p>
-                <ol className="text-sm text-gray-700 space-y-3">
-                  <li className="flex items-start gap-3">
-                    <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">1</span>
-                    <span>Pulsa el botón <strong>Compartir</strong> <span className="text-base">⬆️</span> en la barra de Safari</span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">2</span>
-                    <span>Desplázate hacia abajo y pulsa <strong>"Añadir a pantalla de inicio"</strong></span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">3</span>
-                    <span>Pulsa <strong>Añadir</strong> para confirmar</span>
-                  </li>
+                <p className="text-gray-400 text-xs text-center mb-5">Ábrelo en <strong>Safari</strong> si aún no lo has hecho</p>
+                <ol className="space-y-4">
+                  {[
+                    <>Pulsa el botón <strong>Compartir</strong> <span className="text-base">⬆️</span> en la barra inferior de Safari</>,
+                    <>Desplázate y pulsa <strong>"Añadir a pantalla de inicio"</strong></>,
+                    <>Pulsa <strong>Añadir</strong> para confirmar</>,
+                  ].map((step, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                      <span className="text-sm text-gray-700">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )}
+
+            {platform === 'android' && (
+              <>
+                <div className="text-4xl mb-3 text-center">🤖</div>
+                <h3 className="font-bold text-gray-800 text-lg mb-1 text-center">Instalar en Android</h3>
+                <p className="text-gray-400 text-xs text-center mb-5">Ábrelo en <strong>Chrome</strong> si aún no lo has hecho</p>
+                <ol className="space-y-4">
+                  {[
+                    <>Pulsa el menú <strong>⋮</strong> (tres puntos) arriba a la derecha</>,
+                    <>Pulsa <strong>"Añadir a pantalla de inicio"</strong> o <strong>"Instalar app"</strong></>,
+                    <>Confirma pulsando <strong>Añadir</strong></>,
+                  ].map((step, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                      <span className="text-sm text-gray-700">{step}</span>
+                    </li>
+                  ))}
                 </ol>
               </>
             )}
 
             {platform === 'desktop' && (
               <>
-                <div className="text-3xl mb-3 text-center">💻</div>
-                <h3 className="font-bold text-gray-800 text-lg mb-1 text-center">Instalar en escritorio</h3>
-                <p className="text-gray-500 text-sm text-center mb-4">En Chrome, busca el icono <strong>⊕</strong> en la barra de direcciones y pulsa <strong>"Instalar"</strong>.</p>
-                <p className="text-gray-400 text-xs text-center">En Edge verás un icono similar. En Safari de Mac no está disponible.</p>
+                <div className="text-4xl mb-3 text-center">💻</div>
+                <h3 className="font-bold text-gray-800 text-lg mb-3 text-center">Instalar en escritorio</h3>
+                <p className="text-sm text-gray-700 mb-2">En <strong>Chrome o Edge</strong>, busca el icono <strong>⊕</strong> al final de la barra de direcciones y pulsa <strong>"Instalar"</strong>.</p>
+                <p className="text-xs text-gray-400">En Safari de Mac la instalación no está disponible.</p>
               </>
             )}
 
             <div className="flex gap-3 mt-6">
-              <button
-                onClick={dismiss}
-                className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-sm text-gray-600 font-medium"
-              >
+              <button onClick={dismiss} className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-sm text-gray-600 font-medium">
                 No mostrar más
               </button>
-              <button
-                onClick={() => setShowModal(false)}
-                className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
-              >
+              <button onClick={() => setShowModal(false)} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700">
                 Entendido
               </button>
             </div>
