@@ -93,7 +93,7 @@ export default function PayrollModal({ payroll, userName, onClose, onSaved }: Pr
 
         <div className="space-y-3">
           <div>
-            <label className="text-xs font-medium text-gray-600 mb-1 block">Sueldo pactado (€)</label>
+            <label className="text-xs font-medium text-gray-600 mb-1 block">Kombat pactado (€)</label>
             <input type="number" value={base} onChange={e => { setBase(e.target.value); handleNetChange(e.target.value, advances, garnishments) }}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>

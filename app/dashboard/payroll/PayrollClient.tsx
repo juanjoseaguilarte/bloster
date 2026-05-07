@@ -135,7 +135,7 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
                 <tr className="bg-gray-50 text-gray-500 text-xs">
                   <th className="text-left px-4 py-3 font-semibold sticky left-0 bg-gray-50 z-10">Empleado</th>
                   <th className="text-center px-3 py-3 font-semibold">Tipo</th>
-                  <th className="text-right px-3 py-3 font-semibold">Pactado</th>
+                  <th className="text-right px-3 py-3 font-semibold">Kombat</th>
                   <th className="text-right px-3 py-3 font-semibold">Adelantos</th>
                   <th className="text-right px-3 py-3 font-semibold">Embargos</th>
                   <th className="text-right px-3 py-3 font-semibold">Neto</th>

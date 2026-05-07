@@ -61,7 +61,7 @@ export default function SalaryConfigModal({ userId, userName, current, onClose, 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
       <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
-        <h3 className="font-bold text-gray-800 text-lg mb-1">Configurar sueldo</h3>
+        <h3 className="font-bold text-gray-800 text-lg mb-1">Configurar kombat</h3>
         <p className="text-gray-500 text-sm mb-4">{userName}</p>
 
         {/* Tipo */}
@@ -82,7 +82,7 @@ export default function SalaryConfigModal({ userId, userName, current, onClose, 
         <div className="space-y-3">
           {showFixed && (
             <div>
-              <label className="text-xs font-medium text-gray-600 mb-1 block">Sueldo fijo mensual (€)</label>
+              <label className="text-xs font-medium text-gray-600 mb-1 block">Kombat fijo mensual (€)</label>
               <input
                 type="number"
                 value={fixedAmount}

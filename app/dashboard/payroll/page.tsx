@@ -9,7 +9,7 @@ export default async function PayrollPage() {
 
   return (
     <div className="p-4 sm:p-6">
-      <h1 className="text-xl font-bold text-gray-800 mb-6">Sueldos</h1>
+      <h1 className="text-xl font-bold text-gray-800 mb-6">Kombat</h1>
       <PayrollClient isAdmin={session.user.role === 'ADMIN'} />
     </div>
   )
