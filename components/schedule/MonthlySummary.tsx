@@ -149,7 +149,7 @@ export default function MonthlySummary() {
                 <thead>
                   <tr className="bg-blue-50 text-blue-700 text-xs">
                     <th className="text-left px-4 py-2 font-semibold">Empleado</th>
-                    <th className="text-center px-3 py-2 font-semibold">Total turnos</th>
+                    <th className="text-center px-3 py-2 font-semibold">Total blosters</th>
                     <th className="text-center px-3 py-2 font-semibold">Horas est.</th>
                     <th className="text-center px-3 py-2 font-semibold">Libres</th>
                   </tr>

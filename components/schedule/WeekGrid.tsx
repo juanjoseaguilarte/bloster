@@ -131,7 +131,7 @@ export default function WeekGrid({ users, readOnly = false, simulatedRole }: Pro
       })
       if (res.ok) {
         const { copied } = await res.json()
-        toast.success(`${copied} turnos copiados de la semana anterior`)
+        toast.success(`${copied} blosters copiados de la semana anterior`)
         fetchSchedule()
       } else {
         const err = await res.json()
@@ -352,7 +352,7 @@ export default function WeekGrid({ users, readOnly = false, simulatedRole }: Pro
           <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full text-center">
             <div className="text-4xl mb-3">🗑️</div>
             <h3 className="font-bold text-gray-800 text-lg mb-1">¿Borrar semana completa?</h3>
-            <p className="text-gray-500 text-sm mb-5">Se eliminarán todos los turnos de esta semana y quedará despublicada. No se puede deshacer.</p>
+            <p className="text-gray-500 text-sm mb-5">Se eliminarán todos los blosters de esta semana y quedará despublicada. No se puede deshacer.</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmClear(false)}

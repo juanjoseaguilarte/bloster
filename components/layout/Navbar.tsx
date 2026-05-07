@@ -20,7 +20,7 @@ export default function Navbar() {
 
   const links = isStaff
     ? [
-        { href: '/dashboard', label: 'Turnos' },
+        { href: '/dashboard', label: 'Blosters' },
         { href: '/dashboard/users', label: 'Empleados' },
         { href: '/dashboard/profile', label: 'Mi perfil' },
       ]

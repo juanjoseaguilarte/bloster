@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   })
 
   if (!fromSchedule || fromSchedule.shifts.length === 0) {
-    return NextResponse.json({ error: 'No hay turnos en la semana anterior' }, { status: 404 })
+    return NextResponse.json({ error: 'No hay blosters en la semana anterior' }, { status: 404 })
   }
 
   let toSchedule = await prisma.weekSchedule.findUnique({ where: { weekStart: toDate } })

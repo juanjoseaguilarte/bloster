@@ -8,7 +8,7 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Bloster',
-  description: 'Gestión de turnos',
+  description: 'Gestión de blosters',
   manifest: '/manifest.json',
   themeColor: '#2563EB',
   appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Bloster' },

@@ -36,7 +36,7 @@ export default function ClearHistory({ onRestored }: Props) {
       const res = await fetch(`/api/schedules/history/${logId}/restore`, { method: 'POST' })
       if (res.ok) {
         const { restored } = await res.json()
-        toast.success(`${restored} turnos restaurados`)
+        toast.success(`${restored} blosters restaurados`)
         setLogs(prev => prev.filter(l => l.id !== logId))
         onRestored()
       } else {
@@ -77,7 +77,7 @@ export default function ClearHistory({ onRestored }: Props) {
                         {formatWeekLabel(new Date(log.weekStart))}
                       </p>
                       <p className="text-xs text-gray-400">
-                        {log.shifts.length} turnos · borrada el{' '}
+                        {log.shifts.length} blosters · borrada el{' '}
                         {new Date(log.clearedAt).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                         {log.clearedBy ? ` por ${log.clearedBy.name}` : ''}
                       </p>

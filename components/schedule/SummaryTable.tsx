@@ -27,7 +27,7 @@ export default function SummaryTable({ weekScheduleId }: { weekScheduleId: strin
   return (
     <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-        <h3 className="font-semibold text-gray-700 text-sm">Resumen de horas y turnos</h3>
+        <h3 className="font-semibold text-gray-700 text-sm">Resumen de horas y blosters</h3>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -36,7 +36,7 @@ export default function SummaryTable({ weekScheduleId }: { weekScheduleId: strin
               <th className="text-left px-4 py-2 font-semibold">Empleado</th>
               <th className="text-center px-3 py-2 font-semibold">T. Mañana</th>
               <th className="text-center px-3 py-2 font-semibold">T. Tarde</th>
-              <th className="text-center px-3 py-2 font-semibold">Total turnos</th>
+              <th className="text-center px-3 py-2 font-semibold">Total blosters</th>
               <th className="text-center px-3 py-2 font-semibold">Horas est.</th>
               <th className="text-center px-3 py-2 font-semibold">Libres</th>
               <th className="text-center px-3 py-2 font-semibold">Imaginária</th>

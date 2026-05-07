@@ -65,7 +65,7 @@ export default function PushManager() {
         <span className="text-2xl">🔔</span>
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-800 text-sm">Activa las notificaciones</p>
-          <p className="text-gray-500 text-xs mt-0.5">Te avisaremos cuando se publiquen tus turnos.</p>
+          <p className="text-gray-500 text-xs mt-0.5">Te avisaremos cuando se publiquen tus blosters.</p>
         </div>
       </div>
       <div className="flex gap-2 mt-3">

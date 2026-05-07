@@ -80,7 +80,7 @@ export default function ShiftCell({ shift, userColor, editable, period, onSave }
         onPointerDown={e => e.stopPropagation()}
       >
         <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-4" />
-        <h3 className="font-semibold mb-4 text-gray-800 text-center text-base">Editar turno</h3>
+        <h3 className="font-semibold mb-4 text-gray-800 text-center text-base">Editar bloster</h3>
 
         {/* Shift type selector */}
         <div className="flex gap-2 mb-4">
