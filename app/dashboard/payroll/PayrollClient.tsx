@@ -28,6 +28,12 @@ interface Payroll {
   paidAt?: string | null
 }
 
+interface ShiftBreakdown {
+  morningCount: number
+  afternoonCount: number
+  imaginaryCount: number
+}
+
 interface UserRow {
   id: string
   name: string
@@ -37,6 +43,7 @@ interface UserRow {
   salaryConfig: SalaryConfig | null
   payrolls: Payroll[]
   suggested?: number | null
+  breakdown?: ShiftBreakdown | null
 }
 
 const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -163,6 +170,14 @@ function PayrollRow({
       <td className="px-4 py-3 sticky left-0 bg-white z-10 whitespace-nowrap" style={{ borderLeft: `3px solid ${user.color}` }}>
         <span className="font-medium text-gray-800">{user.name}</span>
         {!user.active && <span className="ml-1.5 text-xs bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full">Inactivo</span>}
+        {user.breakdown && user.salaryConfig && ['PER_SHIFT', 'MIXED'].includes(user.salaryConfig.type) && (() => {
+          const total = user.breakdown.morningCount + user.breakdown.afternoonCount + user.breakdown.imaginaryCount
+          return (
+            <span className="ml-1.5 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">
+              {total} blosters
+            </span>
+          )
+        })()}
       </td>
       {/* Tipo */}
       <td className="text-center px-3 py-3 whitespace-nowrap">
@@ -300,10 +315,16 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
       const users: UserRow[] = await res.json()
       const withSuggestions = await Promise.all(
         users.map(async u => {
-          if (u.payrolls.length > 0 || !u.salaryConfig) return u
+          const needsSuggest = !u.salaryConfig ? false :
+            u.payrolls.length === 0 || ['PER_SHIFT', 'MIXED'].includes(u.salaryConfig.type)
+          if (!needsSuggest) return u
           const sug = await fetch(`/api/salary/suggest?year=${year}&month=${month}&userId=${u.id}`)
           const data = await sug.json()
-          return { ...u, suggested: data.amount ?? null }
+          return {
+            ...u,
+            suggested: u.payrolls.length === 0 ? (data.amount ?? null) : u.suggested,
+            breakdown: data.breakdown ?? null,
+          }
         })
       )
       setRows(withSuggestions)
