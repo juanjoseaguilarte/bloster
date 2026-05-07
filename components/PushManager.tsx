@@ -1,11 +1,20 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
+import toast from 'react-hot-toast'
+
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = window.atob(base64)
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)))
+}
 
 export default function PushManager() {
   const { data: session } = useSession()
   const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>('default')
   const [subscribed, setSubscribed] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
     if (!session?.user?.id) return
@@ -16,29 +25,37 @@ export default function PushManager() {
 
     setPermission(Notification.permission)
 
-    // Registrar service worker
-    navigator.serviceWorker.register('/sw.js').then(reg => {
-      reg.pushManager.getSubscription().then(sub => {
-        setSubscribed(!!sub)
-      })
-    })
+    navigator.serviceWorker.register('/push-sw.js', { scope: '/' })
+      .then(reg => reg.pushManager.getSubscription())
+      .then(sub => { if (sub) setSubscribed(true) })
+      .catch(() => {})
   }, [session?.user?.id])
 
   async function subscribe() {
+    const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+    if (!vapidKey) {
+      toast.error('VAPID key no configurada')
+      return
+    }
     try {
       const reg = await navigator.serviceWorker.ready
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
       })
-      await fetch('/api/push/subscribe', {
+      const res = await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sub.toJSON()),
       })
-      setSubscribed(true)
-      setPermission('granted')
-    } catch {
+      if (res.ok) {
+        setSubscribed(true)
+        toast.success('Notificaciones activadas')
+      } else {
+        toast.error('Error al guardar suscripción')
+      }
+    } catch (e: any) {
+      toast.error(`Error: ${e?.message ?? 'desconocido'}`)
       setPermission(Notification.permission as NotificationPermission)
     }
   }
@@ -47,18 +64,19 @@ export default function PushManager() {
     const result = await Notification.requestPermission()
     setPermission(result)
     if (result === 'granted') await subscribe()
+    else if (result === 'denied') toast('Notificaciones bloqueadas en el navegador')
   }
 
-  // Si ya está suscrito o no hay sesión, no mostrar nada
-  if (!session?.user?.id || subscribed || permission === 'unsupported' || permission === 'denied') return null
+  // Auto-suscribir si ya tiene permiso pero no está suscrito
+  useEffect(() => {
+    if (permission === 'granted' && !subscribed && session?.user?.id) {
+      subscribe()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [permission, subscribed, session?.user?.id])
 
-  // Si ya tiene permiso pero no está suscrito
-  if (permission === 'granted') {
-    subscribe()
-    return null
-  }
+  if (!session?.user?.id || subscribed || dismissed || permission === 'unsupported' || permission === 'denied' || permission === 'granted') return null
 
-  // Pedir permiso
   return (
     <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 bg-white border border-gray-200 rounded-2xl shadow-xl p-4 z-50">
       <div className="flex items-start gap-3">
@@ -76,7 +94,7 @@ export default function PushManager() {
           Activar
         </button>
         <button
-          onClick={() => setPermission('denied')}
+          onClick={() => setDismissed(true)}
           className="px-4 text-gray-400 text-sm py-2 rounded-xl hover:bg-gray-100"
         >
           Ahora no
