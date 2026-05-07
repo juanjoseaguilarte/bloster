@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import VersionChecker from '@/components/VersionChecker'
 import QRModal from '@/components/QRModal'
+import InstallPrompt from '@/components/InstallPrompt'
 import toast from 'react-hot-toast'
 
 function TestPushButton() {
@@ -74,6 +75,7 @@ export default function Navbar() {
             )}
             {role === 'ADMIN' && <TestPushButton />}
             {isStaff && <QRModal />}
+            <InstallPrompt />
             <span className="text-sm text-gray-600 font-medium">{session?.user?.name}</span>
             {role !== 'EMPLEADO' && (
               <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full hidden sm:inline">{role}</span>
