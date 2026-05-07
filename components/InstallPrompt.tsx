@@ -20,8 +20,6 @@ export default function InstallPrompt() {
   useEffect(() => {
     // Ya instalada en standalone → no mostrar
     if (window.matchMedia('(display-mode: standalone)').matches) return
-    // Usuario descartó en este dispositivo → no mostrar
-    if (localStorage.getItem('pwa-install-dismissed')) return
 
     const p = detectPlatform()
     setPlatform(p)
@@ -55,7 +53,6 @@ export default function InstallPrompt() {
   }
 
   function dismiss() {
-    localStorage.setItem('pwa-install-dismissed', '1')
     setVisible(false)
     setShowModal(false)
   }
