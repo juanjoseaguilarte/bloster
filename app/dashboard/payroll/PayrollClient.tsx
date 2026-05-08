@@ -83,10 +83,95 @@ function EditableCell({
 
 interface RowVals { base: number; advances: number; garnishments: number; transfer: number }
 
-function PayrollRow({
-  user, isAdmin, onRefresh, onOpenModal, onConfig, onPay, onUnpay, onExclude, paying,
+function EmployeeMenu({
+  user, isAdmin, year, month, onRefresh, onOpenModal, onConfig, onPay, onUnpay, onExclude, onClose, paying,
 }: {
-  user: UserRow; isAdmin: boolean
+  user: UserRow; isAdmin: boolean; year: number; month: number
+  onRefresh: () => void; onOpenModal: (u: UserRow) => void; onConfig: (u: UserRow) => void
+  onPay: (p: Payroll) => void; onUnpay: (p: Payroll) => void; onExclude: (u: UserRow) => void
+  onClose: () => void; paying: string | null
+}) {
+  const p = user.payrolls[0]
+  const isPaid = p?.status === 'PAID'
+  const shiftTotal = user.breakdown
+    ? user.breakdown.morningCount + user.breakdown.afternoonCount + user.breakdown.imaginaryCount
+    : null
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-end justify-center z-[9999]" onClick={onClose}>
+      <div className="bg-white rounded-t-2xl w-full max-w-lg pb-safe" onClick={e => e.stopPropagation()}>
+        {/* Cabecera */}
+        <div className="flex items-center gap-3 px-5 pt-5 pb-4 border-b border-gray-100">
+          <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: user.color }} />
+          <span className="font-bold text-gray-800 text-base">{user.name}</span>
+        </div>
+
+        <div className="px-5 py-3 space-y-1">
+          {/* Tipo */}
+          <button
+            onClick={() => { onClose(); onConfig(user) }}
+            className="w-full flex items-center justify-between py-3 border-b border-gray-50"
+          >
+            <span className="text-sm text-gray-600">Tipo de kombat</span>
+            <span className="text-sm font-semibold text-gray-800">
+              {user.salaryConfig ? TYPE_LABELS[user.salaryConfig.type] : 'Sin configurar'}
+            </span>
+          </button>
+
+          {/* Blosters */}
+          {shiftTotal !== null && user.salaryConfig && ['PER_SHIFT', 'MIXED'].includes(user.salaryConfig.type) && (
+            <div className="flex items-center justify-between py-3 border-b border-gray-50">
+              <span className="text-sm text-gray-600">Blosters este mes</span>
+              <span className="text-sm font-bold text-blue-700">{shiftTotal}</span>
+            </div>
+          )}
+
+          {/* Estado */}
+          <div className="flex items-center justify-between py-3 border-b border-gray-50">
+            <span className="text-sm text-gray-600">Estado</span>
+            {isPaid
+              ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">Pagado</span>
+              : p
+                ? <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Borrador</span>
+                : <span className="text-xs text-gray-400">Sin nómina</span>
+            }
+          </div>
+        </div>
+
+        {/* Acciones */}
+        <div className="px-5 pb-6 space-y-2">
+          {!p && (
+            <button onClick={() => { onClose(); onOpenModal(user) }}
+              className="w-full py-3 rounded-xl bg-blue-600 text-white text-sm font-semibold">
+              Crear nómina
+            </button>
+          )}
+          {p && !isPaid && (
+            <button onClick={() => { onClose(); onPay(p) }} disabled={paying === p.id}
+              className="w-full py-3 rounded-xl bg-green-600 text-white text-sm font-semibold disabled:opacity-50">
+              ✓ Marcar como pagado
+            </button>
+          )}
+          {p && isPaid && isAdmin && (
+            <button onClick={() => { onClose(); onUnpay(p) }} disabled={paying === p.id}
+              className="w-full py-3 rounded-xl border-2 border-red-200 text-red-500 text-sm font-semibold disabled:opacity-50">
+              Anular pago
+            </button>
+          )}
+          <button onClick={() => { onClose(); onExclude(user) }}
+            className="w-full py-3 rounded-xl border-2 border-gray-200 text-gray-500 text-sm font-medium">
+            Excluir este mes
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PayrollRow({
+  user, isAdmin, year, month, onRefresh, onOpenModal, onConfig, onPay, onUnpay, onExclude, paying,
+}: {
+  user: UserRow; isAdmin: boolean; year: number; month: number
   onRefresh: () => void; onOpenModal: (u: UserRow) => void; onConfig: (u: UserRow) => void
   onPay: (p: Payroll) => void; onUnpay: (p: Payroll) => void; onExclude: (u: UserRow) => void
   paying: string | null
@@ -95,6 +180,7 @@ function PayrollRow({
   const isPaid = p?.status === 'PAID'
   const isSuggested = !p && user.suggested != null
   const editable = !!p && !isPaid
+  const [showMenu, setShowMenu] = useState(false)
 
   const [vals, setVals] = useState<RowVals>({
     base: p?.baseAmount ?? 0, advances: p?.advances ?? 0,
@@ -128,85 +214,77 @@ function PayrollRow({
   function update(field: keyof RowVals, n: number) { setVals(v => ({ ...v, [field]: n })) }
 
   return (
-    <tr className={`border-t border-gray-100 ${isPaid ? 'bg-green-50/40' : ''}`}>
-      <td className="px-4 py-3 sticky left-0 bg-white z-10 whitespace-nowrap" style={{ borderLeft: `3px solid ${user.color}` }}>
-        <span className="font-medium text-gray-800">{user.name}</span>
-        {user.breakdown && user.salaryConfig && ['PER_SHIFT', 'MIXED'].includes(user.salaryConfig.type) && (() => {
-          const total = user.breakdown.morningCount + user.breakdown.afternoonCount + user.breakdown.imaginaryCount
-          return <span className="ml-1.5 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">{total} blosters</span>
-        })()}
-      </td>
-      <td className="text-center px-3 py-3 whitespace-nowrap">
-        <button onClick={() => onConfig(user)} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full hover:bg-blue-50 hover:text-blue-700 transition-colors">
-          {user.salaryConfig ? TYPE_LABELS[user.salaryConfig.type] : '—'}
-        </button>
-      </td>
-      <td className="text-right px-3 py-3">
-        {p ? (
-          <EditableCell value={vals.base} isActive={active === 'base'} editable={editable}
-            onActivate={() => setActive('base')} onChange={n => update('base', n)} onBlur={handleBlur} />
-        ) : isSuggested ? (
-          <span className="text-gray-400 italic whitespace-nowrap">{fmt(user.suggested!)} €</span>
-        ) : <span className="text-gray-300">—</span>}
-      </td>
-      <td className="text-right px-3 py-3">
-        {p ? (
-          <EditableCell value={vals.advances} isActive={active === 'advances'} editable={editable}
-            colorClass={vals.advances > 0 ? 'text-orange-600 font-medium' : 'text-gray-400'}
-            onActivate={() => setActive('advances')} onChange={n => update('advances', n)} onBlur={handleBlur} />
-        ) : <span className="text-gray-300">—</span>}
-      </td>
-      <td className="text-right px-3 py-3">
-        {p ? (
-          <EditableCell value={vals.garnishments} isActive={active === 'garnishments'} editable={editable}
-            colorClass={vals.garnishments > 0 ? 'text-red-500 font-medium' : 'text-gray-400'}
-            onActivate={() => setActive('garnishments')} onChange={n => update('garnishments', n)} onBlur={handleBlur} />
-        ) : <span className="text-gray-300">—</span>}
-      </td>
-      <td className="text-right px-3 py-3 whitespace-nowrap">
-        {p ? <span className={`font-semibold ${net < 0 ? 'text-red-600' : 'text-gray-800'}`}>{fmt(net)} €</span>
-          : <span className="text-gray-300">—</span>}
-      </td>
-      <td className="text-right px-3 py-3">
-        {p ? (
-          <EditableCell value={vals.transfer} isActive={active === 'transfer'} editable={editable}
-            colorClass="text-blue-700 font-medium"
-            onActivate={() => setActive('transfer')} onChange={n => update('transfer', n)} onBlur={handleBlur} />
-        ) : <span className="text-gray-300">—</span>}
-      </td>
-      <td className="text-right px-3 py-3 whitespace-nowrap">
-        {p ? <span className="text-gray-600 font-medium">{fmt(cash)} €</span>
-          : <span className="text-gray-300">—</span>}
-      </td>
-      <td className="text-center px-3 py-3 whitespace-nowrap">
-        {isPaid ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">Pagado</span>
-          : p ? <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Borrador</span>
-          : <span className="text-xs text-gray-300">Sin nómina</span>}
-      </td>
-      <td className="px-3 py-3 text-right whitespace-nowrap">
-        {!p && <button onClick={() => onOpenModal(user)} className="text-xs text-blue-600 hover:text-blue-800 mr-2">Crear</button>}
-        {p && !isPaid && (
-          <button onClick={() => onPay(p)} disabled={paying === p.id} className="text-xs text-green-600 hover:text-green-800 disabled:opacity-50 mr-2">
-            ✓ Pagar
+    <>
+      <tr className={`border-t border-gray-100 ${isPaid ? 'bg-green-50/40' : ''}`}>
+        {/* Nombre — tap abre menú */}
+        <td className="px-4 py-3 sticky left-0 bg-white z-10 whitespace-nowrap" style={{ borderLeft: `3px solid ${user.color}` }}>
+          <button onClick={() => setShowMenu(true)} className="text-left">
+            <span className="font-medium text-gray-800 hover:text-blue-600 transition-colors">{user.name}</span>
+            {isPaid && <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-green-500 align-middle" />}
+            {p && !isPaid && <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-amber-400 align-middle" />}
           </button>
-        )}
-        {p && isPaid && isAdmin && (
-          <button onClick={() => onUnpay(p)} disabled={paying === p.id} className="text-xs text-red-400 hover:text-red-600 disabled:opacity-50 mr-2">
-            Anular
-          </button>
-        )}
-        <button onClick={() => onExclude(user)} className="text-xs text-gray-300 hover:text-gray-500">
-          Excluir
-        </button>
-      </td>
-    </tr>
+        </td>
+        {/* Kombat */}
+        <td className="text-right px-3 py-3">
+          {p ? (
+            <EditableCell value={vals.base} isActive={active === 'base'} editable={editable}
+              onActivate={() => setActive('base')} onChange={n => update('base', n)} onBlur={handleBlur} />
+          ) : isSuggested ? (
+            <span className="text-gray-400 italic whitespace-nowrap">{fmt(user.suggested!)} €</span>
+          ) : <span className="text-gray-300">—</span>}
+        </td>
+        {/* Adelantos */}
+        <td className="text-right px-3 py-3">
+          {p ? (
+            <EditableCell value={vals.advances} isActive={active === 'advances'} editable={editable}
+              colorClass={vals.advances > 0 ? 'text-orange-600 font-medium' : 'text-gray-400'}
+              onActivate={() => setActive('advances')} onChange={n => update('advances', n)} onBlur={handleBlur} />
+          ) : <span className="text-gray-300">—</span>}
+        </td>
+        {/* Embargos */}
+        <td className="text-right px-3 py-3">
+          {p ? (
+            <EditableCell value={vals.garnishments} isActive={active === 'garnishments'} editable={editable}
+              colorClass={vals.garnishments > 0 ? 'text-red-500 font-medium' : 'text-gray-400'}
+              onActivate={() => setActive('garnishments')} onChange={n => update('garnishments', n)} onBlur={handleBlur} />
+          ) : <span className="text-gray-300">—</span>}
+        </td>
+        {/* Neto */}
+        <td className="text-right px-3 py-3 whitespace-nowrap">
+          {p ? <span className={`font-semibold ${net < 0 ? 'text-red-600' : 'text-gray-800'}`}>{fmt(net)} €</span>
+            : <span className="text-gray-300">—</span>}
+        </td>
+        {/* Transferencia */}
+        <td className="text-right px-3 py-3">
+          {p ? (
+            <EditableCell value={vals.transfer} isActive={active === 'transfer'} editable={editable}
+              colorClass="text-blue-700 font-medium"
+              onActivate={() => setActive('transfer')} onChange={n => update('transfer', n)} onBlur={handleBlur} />
+          ) : <span className="text-gray-300">—</span>}
+        </td>
+        {/* Efectivo */}
+        <td className="text-right px-3 py-3 whitespace-nowrap">
+          {p ? <span className="text-gray-600 font-medium">{fmt(cash)} €</span>
+            : <span className="text-gray-300">—</span>}
+        </td>
+      </tr>
+
+      {showMenu && (
+        <EmployeeMenu
+          user={user} isAdmin={isAdmin} year={year} month={month}
+          onRefresh={onRefresh} onOpenModal={onOpenModal} onConfig={onConfig}
+          onPay={onPay} onUnpay={onUnpay} onExclude={onExclude}
+          onClose={() => setShowMenu(false)} paying={paying}
+        />
+      )}
+    </>
   )
 }
 
 function GroupSection({
-  title, rows, isAdmin, onRefresh, onOpenModal, onConfig, onPay, onUnpay, onExclude, paying,
+  title, rows, isAdmin, year, month, onRefresh, onOpenModal, onConfig, onPay, onUnpay, onExclude, paying,
 }: {
-  title: string; rows: UserRow[]; isAdmin: boolean
+  title: string; rows: UserRow[]; isAdmin: boolean; year: number; month: number
   onRefresh: () => void; onOpenModal: (u: UserRow) => void; onConfig: (u: UserRow) => void
   onPay: (p: Payroll) => void; onUnpay: (p: Payroll) => void; onExclude: (u: UserRow) => void
   paying: string | null
@@ -221,21 +299,21 @@ function GroupSection({
   return (
     <>
       <tr className="bg-gray-100">
-        <td colSpan={10} className="px-4 py-1.5 text-xs font-bold text-gray-500 uppercase tracking-wider sticky left-0">{title}</td>
+        <td colSpan={7} className="px-4 py-1.5 text-xs font-bold text-gray-500 uppercase tracking-wider sticky left-0">{title}</td>
       </tr>
       {rows.map(user => (
-        <PayrollRow key={user.id} user={user} isAdmin={isAdmin}
+        <PayrollRow key={user.id} user={user} isAdmin={isAdmin} year={year} month={month}
           onRefresh={onRefresh} onOpenModal={onOpenModal} onConfig={onConfig}
           onPay={onPay} onUnpay={onUnpay} onExclude={onExclude} paying={paying} />
       ))}
       {withP.length > 0 && (
         <tr className="bg-gray-50 text-xs text-gray-500 font-semibold">
           <td className="px-4 py-1.5 sticky left-0 bg-gray-50">Subtotal {title}</td>
-          <td /><td className="text-right px-3 py-1.5">{fmt(subBase)} €</td>
-          <td /><td /><td className="text-right px-3 py-1.5 text-gray-700">{fmt(subNet)} €</td>
+          <td className="text-right px-3 py-1.5">{fmt(subBase)} €</td>
+          <td /><td />
+          <td className="text-right px-3 py-1.5 text-gray-700">{fmt(subNet)} €</td>
           <td className="text-right px-3 py-1.5 text-blue-600">{fmt(subTransfer)} €</td>
           <td className="text-right px-3 py-1.5">{fmt(subCash)} €</td>
-          <td /><td />
         </tr>
       )}
     </>
@@ -446,7 +524,7 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
   const totalTransfer = withPayroll.reduce((a, u) => a + u.payrolls[0].transferAmount, 0)
   const totalCash = withPayroll.reduce((a, u) => a + u.payrolls[0].cashAmount, 0)
 
-  const commonProps = { isAdmin, onRefresh: fetchData, onOpenModal: openModal, onConfig: (u: UserRow) => setConfigUser(u), onPay: handlePay, onUnpay: handleUnpay, onExclude: handleExclude, paying }
+  const commonProps = { isAdmin, year, month, onRefresh: fetchData, onOpenModal: openModal, onConfig: (u: UserRow) => setConfigUser(u), onPay: handlePay, onUnpay: handleUnpay, onExclude: handleExclude, paying }
 
   const prevLabel = (() => { const t = targetMonth('prev'); return `${MONTH_NAMES[t.month - 1]} ${t.year}` })()
   const nextLabel = (() => { const t = targetMonth('next'); return `${MONTH_NAMES[t.month - 1]} ${t.year}` })()
@@ -501,15 +579,12 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
               <thead>
                 <tr className="bg-gray-50 text-gray-500 text-xs">
                   <th className="text-left px-4 py-3 font-semibold sticky left-0 bg-gray-50 z-10 whitespace-nowrap">Empleado</th>
-                  <th className="text-center px-3 py-3 font-semibold whitespace-nowrap">Tipo</th>
                   <th className="text-right px-3 py-3 font-semibold whitespace-nowrap w-[110px]">Kombat</th>
                   <th className="text-right px-3 py-3 font-semibold whitespace-nowrap w-[110px]">Adelantos</th>
                   <th className="text-right px-3 py-3 font-semibold whitespace-nowrap w-[110px]">Embargos</th>
                   <th className="text-right px-3 py-3 font-semibold whitespace-nowrap w-[110px]">Neto</th>
                   <th className="text-right px-3 py-3 font-semibold whitespace-nowrap w-[110px]">Transf.</th>
                   <th className="text-right px-3 py-3 font-semibold whitespace-nowrap w-[110px]">Efectivo</th>
-                  <th className="text-center px-3 py-3 font-semibold whitespace-nowrap">Estado</th>
-                  <th className="px-3 py-3 w-28" />
                 </tr>
               </thead>
               <tbody>
@@ -520,14 +595,12 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
                 {withPayroll.length > 0 && (
                   <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-sm">
                     <td className="px-4 py-3 text-gray-700 sticky left-0 bg-gray-50 whitespace-nowrap">TOTALES</td>
-                    <td />
                     <td className="text-right px-3 py-3 text-gray-800 whitespace-nowrap">{fmt(totalBase)} €</td>
                     <td className="text-right px-3 py-3 text-orange-600 whitespace-nowrap">{fmt(totalAdv)} €</td>
                     <td className="text-right px-3 py-3 text-red-500 whitespace-nowrap">{fmt(totalGarn)} €</td>
                     <td className="text-right px-3 py-3 text-gray-800 whitespace-nowrap">{fmt(totalNet)} €</td>
                     <td className="text-right px-3 py-3 text-blue-700 whitespace-nowrap">{fmt(totalTransfer)} €</td>
                     <td className="text-right px-3 py-3 text-gray-600 whitespace-nowrap">{fmt(totalCash)} €</td>
-                    <td /><td />
                   </tr>
                 )}
 
@@ -538,7 +611,7 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
                       className="border-t border-gray-200 bg-gray-50 cursor-pointer hover:bg-gray-100"
                       onClick={() => setShowExcluded(v => !v)}
                     >
-                      <td colSpan={10} className="px-4 py-2 text-xs text-gray-400 font-semibold sticky left-0">
+                      <td colSpan={7} className="px-4 py-2 text-xs text-gray-400 font-semibold sticky left-0">
                         {showExcluded ? '▾' : '▸'} Excluidos este mes ({excluded.length})
                       </td>
                     </tr>
@@ -547,7 +620,7 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
                         <td className="px-4 py-2 sticky left-0 bg-gray-50 whitespace-nowrap" style={{ borderLeft: `3px solid ${user.color}` }}>
                           <span className="text-sm text-gray-500">{user.name}</span>
                         </td>
-                        <td colSpan={8} className="px-3 py-2 text-xs text-gray-400 italic">Excluido este mes</td>
+                        <td colSpan={5} className="px-3 py-2 text-xs text-gray-400 italic">Excluido este mes</td>
                         <td className="px-3 py-2 text-right">
                           <button onClick={() => handleInclude(user)} className="text-xs text-blue-600 hover:text-blue-800">Incluir</button>
                         </td>
