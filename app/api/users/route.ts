@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
   const body = await req.json()
-  const { name, color, group, payrollOnly } = body
+  const { name, color, group, payrollOnly, active } = body
   let { email, password, role } = body
 
   if (!name) return NextResponse.json({ error: 'Missing name' }, { status: 400 })
@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
       color: color || '#3B82F6',
       group: group || 'BARRA',
       payrollOnly: payrollOnly ?? false,
+      active: active ?? true,
     },
     select: { id: true, name: true, email: true, role: true, color: true, group: true, payrollOnly: true },
   })

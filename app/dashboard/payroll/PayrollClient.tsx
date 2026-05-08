@@ -50,7 +50,6 @@ interface UserRow {
 
 const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 const TYPE_LABELS: Record<string, string> = { FIXED: 'Fijo', PER_SHIFT: 'Por bloster', MIXED: 'Mixto' }
-const COLORS = ['#EF4444','#F97316','#EAB308','#22C55E','#3B82F6','#8B5CF6','#EC4899','#06B6D4','#84CC16','#F59E0B','#14B8A6','#F43F5E']
 
 function fmt(n: number) {
   return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -245,22 +244,36 @@ function GroupSection({
   )
 }
 
-function AddKombatUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function AddKombatUserModal({ year, month, onClose, onSaved }: { year: number; month: number; onClose: () => void; onSaved: () => void }) {
   const [name, setName] = useState('')
-  const [group, setGroup] = useState<'BARRA' | 'COCINA'>('BARRA')
-  const [color, setColor] = useState('#3B82F6')
+  const [baseAmount, setBaseAmount] = useState('')
   const [saving, setSaving] = useState(false)
 
   async function handleSave() {
     if (!name.trim()) return toast.error('Introduce un nombre')
     setSaving(true)
     try {
-      const res = await fetch('/api/users', {
+      // Crear usuario inactivo solo para Kombat (grupo BARRA por defecto, va a "Otros")
+      const userRes = await fetch('/api/users', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), group, color, payrollOnly: true }),
+        body: JSON.stringify({ name: name.trim(), payrollOnly: true, active: false }),
       })
-      if (res.ok) { toast.success('Empleado añadido'); onSaved() }
-      else toast.error('Error al crear')
+      if (!userRes.ok) { toast.error('Error al crear'); return }
+      const user = await userRes.json()
+
+      // Crear nómina para este mes directamente
+      const amount = parseFloat(baseAmount) || 0
+      await fetch('/api/salary/payroll', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id, year, month,
+          baseAmount: amount, advances: 0, garnishments: 0,
+          transferAmount: 0, cashAmount: amount, notes: null,
+        }),
+      })
+
+      toast.success('Empleado añadido')
+      onSaved()
     } finally {
       setSaving(false)
     }
@@ -269,30 +282,19 @@ function AddKombatUserModal({ onClose, onSaved }: { onClose: () => void; onSaved
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[9999] p-4">
       <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
-        <h3 className="font-bold text-gray-800 text-lg mb-1">Añadir empleado</h3>
-        <p className="text-gray-400 text-xs mb-4">Solo aparece en Kombat, sin acceso a la app</p>
+        <h3 className="font-bold text-gray-800 text-lg mb-1">Añadir a Kombat</h3>
+        <p className="text-gray-400 text-xs mb-4">Solo para este mes · Aparece en sección Otros</p>
         <div className="space-y-3">
           <input
             type="text" placeholder="Nombre" value={name} onChange={e => setName(e.target.value)} autoFocus
             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          <div className="flex gap-2">
-            {(['BARRA', 'COCINA'] as const).map(g => (
-              <button key={g} type="button" onClick={() => setGroup(g)}
-                className={`flex-1 py-2 rounded-lg text-sm font-semibold border-2 transition-all ${group === g ? 'border-blue-600 text-blue-600' : 'border-gray-200 text-gray-500'}`}>
-                {g === 'BARRA' ? 'Barra' : 'Cocina'}
-              </button>
-            ))}
-          </div>
           <div>
-            <label className="text-xs text-gray-500 mb-2 block">Color</label>
-            <div className="flex gap-2 flex-wrap">
-              {COLORS.map(c => (
-                <button key={c} type="button" onClick={() => setColor(c)}
-                  className={`w-7 h-7 rounded-full border-2 transition-all ${color === c ? 'border-gray-800 scale-110' : 'border-transparent'}`}
-                  style={{ backgroundColor: c }} />
-              ))}
-            </div>
+            <label className="text-xs text-gray-500 mb-1 block">Kombat (€) — opcional</label>
+            <input
+              type="number" placeholder="0,00" value={baseAmount} onChange={e => setBaseAmount(e.target.value)} step="0.01"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
         </div>
         <div className="flex gap-3 mt-5">
@@ -396,9 +398,9 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
   const excluded = rows.filter(u => u.excluded)
 
   const groups = [
-    { key: 'COCINA', label: 'Cocina', rows: included.filter(u => u.group === 'COCINA') },
-    { key: 'BARRA', label: 'Barra', rows: included.filter(u => u.group === 'BARRA') },
-    { key: 'OTROS', label: 'Otros', rows: included.filter(u => u.group !== 'COCINA' && u.group !== 'BARRA') },
+    { key: 'COCINA', label: 'Cocina', rows: included.filter(u => u.group === 'COCINA' && !u.payrollOnly) },
+    { key: 'BARRA', label: 'Barra', rows: included.filter(u => u.group === 'BARRA' && !u.payrollOnly) },
+    { key: 'OTROS', label: 'Otros', rows: included.filter(u => u.payrollOnly || (u.group !== 'COCINA' && u.group !== 'BARRA')) },
   ]
 
   const withPayroll = included.filter(u => u.payrolls[0])
@@ -502,7 +504,7 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
           onClose={() => setConfigUser(null)} onSaved={() => { setConfigUser(null); fetchData() }} />
       )}
       {showAddModal && (
-        <AddKombatUserModal onClose={() => setShowAddModal(false)} onSaved={() => { setShowAddModal(false); fetchData() }} />
+        <AddKombatUserModal year={year} month={month} onClose={() => setShowAddModal(false)} onSaved={() => { setShowAddModal(false); fetchData() }} />
       )}
     </div>
   )
