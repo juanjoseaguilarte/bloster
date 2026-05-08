@@ -62,7 +62,8 @@ model User {
   group        UserGroup @default(BARRA)
   active       Boolean   @default(true)
   payrollOnly  Boolean   @default(false)
-  lastLoginAt  DateTime?
+  lastLoginAt     DateTime?
+  pwaInstalledAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

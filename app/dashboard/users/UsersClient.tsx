@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 const COLORS = ['#EF4444','#F97316','#EAB308','#22C55E','#3B82F6','#8B5CF6','#EC4899','#06B6D4','#84CC16','#F59E0B','#14B8A6','#F43F5E']
 
 interface User {
-  id: string; name: string; email: string; role: string; color: string; group: string; active: boolean; lastLoginAt?: string | null
+  id: string; name: string; email: string; role: string; color: string; group: string; active: boolean; lastLoginAt?: string | null; pwaInstalledAt?: string | null
 }
 
 function formatLastLogin(lastLoginAt?: string | null): string {
@@ -96,6 +96,12 @@ export default function UsersClient({ isAdmin }: { isAdmin: boolean }) {
       <td className="px-3 py-3 text-xs text-gray-400 hidden sm:table-cell whitespace-nowrap">
         {formatLastLogin(u.lastLoginAt)}
       </td>
+      <td className="px-3 py-3 text-xs hidden lg:table-cell whitespace-nowrap">
+        {u.pwaInstalledAt
+          ? <span className="text-green-600 font-medium">📱 {formatLastLogin(u.pwaInstalledAt)}</span>
+          : <span className="text-gray-300">—</span>
+        }
+      </td>
       <td className="px-3 py-3 text-right whitespace-nowrap">
         {isAdmin && (
           <a
@@ -128,12 +134,13 @@ export default function UsersClient({ isAdmin }: { isAdmin: boolean }) {
               <th className="text-left px-3 py-2 text-gray-500 font-semibold text-xs">Rol</th>
               <th className="text-left px-3 py-2 text-gray-500 font-semibold text-xs">Estado</th>
               <th className="text-left px-3 py-2 text-gray-500 font-semibold text-xs hidden sm:table-cell">Última conexión</th>
+              <th className="text-left px-3 py-2 text-gray-500 font-semibold text-xs hidden lg:table-cell">App instalada</th>
               <th className="px-3 py-2" />
             </tr>
           </thead>
           <tbody>
             {list.length === 0
-              ? <tr><td colSpan={6} className="text-center py-4 text-gray-400 text-xs">Sin empleados en este grupo</td></tr>
+              ? <tr><td colSpan={7} className="text-center py-4 text-gray-400 text-xs">Sin empleados en este grupo</td></tr>
               : list.map(u => <UserRow key={u.id} u={u} />)
             }
           </tbody>
