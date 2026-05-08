@@ -131,8 +131,6 @@ function PayrollRow({
     <tr className={`border-t border-gray-100 ${isPaid ? 'bg-green-50/40' : ''}`}>
       <td className="px-4 py-3 sticky left-0 bg-white z-10 whitespace-nowrap" style={{ borderLeft: `3px solid ${user.color}` }}>
         <span className="font-medium text-gray-800">{user.name}</span>
-        {!user.active && <span className="ml-1.5 text-xs bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full">Inactivo</span>}
-        {user.payrollOnly && <span className="ml-1.5 text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full">Solo Kombat</span>}
         {user.breakdown && user.salaryConfig && ['PER_SHIFT', 'MIXED'].includes(user.salaryConfig.type) && (() => {
           const total = user.breakdown.morningCount + user.breakdown.afternoonCount + user.breakdown.imaginaryCount
           return <span className="ml-1.5 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">{total} blosters</span>
