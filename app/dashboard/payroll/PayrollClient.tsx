@@ -320,6 +320,8 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
   const [showCopyMenu, setShowCopyMenu] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [copying, setCopying] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmCopyDir, setConfirmCopyDir] = useState<'prev' | 'next' | null>(null)
 
   function prevMonth() { if (month === 1) { setMonth(12); setYear(y => y - 1) } else setMonth(m => m - 1) }
   function nextMonth() { if (month === 12) { setMonth(1); setYear(y => y + 1) } else setMonth(m => m + 1) }
@@ -367,8 +369,8 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
     } finally { setPayingId(null) }
   }
 
-  async function handleDeleteMonth() {
-    if (!confirm(`¿Borrar TODAS las nóminas de ${MONTH_NAMES[month - 1]} ${year}? Esta acción no se puede deshacer.`)) return
+  async function doDeleteMonth() {
+    setConfirmDelete(false)
     setDeleting(true)
     try {
       const res = await fetch(`/api/salary/payroll/month?year=${year}&month=${month}`, { method: 'DELETE' })
@@ -378,17 +380,14 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
   }
 
   function targetMonth(direction: 'prev' | 'next') {
-    if (direction === 'prev') {
-      return month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 }
-    }
+    if (direction === 'prev') return month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 }
     return month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 }
   }
 
-  async function handleCopy(direction: 'prev' | 'next') {
-    setShowCopyMenu(false)
+  async function doCopy(direction: 'prev' | 'next') {
+    setConfirmCopyDir(null)
     const to = targetMonth(direction)
     const label = `${MONTH_NAMES[to.month - 1]} ${to.year}`
-    if (!confirm(`¿Copiar nóminas de ${MONTH_NAMES[month - 1]} ${year} a ${label}?\nLos adelantos no se copian. Las nóminas ya existentes en ${label} no se sobreescriben.`)) return
     setCopying(true)
     try {
       const res = await fetch('/api/salary/payroll/copy', {
@@ -397,7 +396,7 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
       })
       if (res.ok) {
         const d = await res.json()
-        toast.success(`${d.copied} nóminas copiadas a ${label}${d.skipped ? ` (${d.skipped} ya existían)` : ''}`)
+        toast.success(`${d.copied} nóminas copiadas a ${label}${d.skipped ? ` · ${d.skipped} ya existían` : ''}`)
       } else toast.error('Error al copiar')
     } finally { setCopying(false) }
   }
@@ -472,10 +471,10 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
               </button>
               {showCopyMenu && (
                 <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 min-w-[180px]">
-                  <button onClick={() => handleCopy('prev')} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-t-xl">
+                  <button onClick={() => { setShowCopyMenu(false); setConfirmCopyDir('prev') }} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-t-xl">
                     ← {prevLabel}
                   </button>
-                  <button onClick={() => handleCopy('next')} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 border-t border-gray-100 rounded-b-xl">
+                  <button onClick={() => { setShowCopyMenu(false); setConfirmCopyDir('next') }} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 border-t border-gray-100 rounded-b-xl">
                     → {nextLabel}
                   </button>
                 </div>
@@ -483,7 +482,7 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
             </div>
           )}
           {isAdmin && (
-            <button onClick={handleDeleteMonth} disabled={deleting} className="text-sm px-3 py-1.5 border border-red-200 text-red-500 rounded-lg font-medium hover:bg-red-50 disabled:opacity-50">
+            <button onClick={() => setConfirmDelete(true)} disabled={deleting} className="text-sm px-3 py-1.5 border border-red-200 text-red-500 rounded-lg font-medium hover:bg-red-50 disabled:opacity-50">
               {deleting ? '...' : 'Borrar mes'}
             </button>
           )}
@@ -573,6 +572,42 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
       {showAddModal && (
         <AddKombatUserModal year={year} month={month} onClose={() => setShowAddModal(false)} onSaved={() => { setShowAddModal(false); fetchData() }} />
       )}
+
+      {/* Modal confirmar borrar mes */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+            <h3 className="font-bold text-gray-800 text-lg mb-2">Borrar mes</h3>
+            <p className="text-gray-600 text-sm mb-5">
+              ¿Eliminar <strong>todas</strong> las nóminas de <strong>{MONTH_NAMES[month - 1]} {year}</strong>?<br />
+              <span className="text-red-500 text-xs">Esta acción no se puede deshacer.</span>
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-sm text-gray-600 font-medium">Cancelar</button>
+              <button onClick={doDeleteMonth} className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700">Borrar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal confirmar copiar mes */}
+      {confirmCopyDir && (() => {
+        const to = targetMonth(confirmCopyDir)
+        const toLabel = `${MONTH_NAMES[to.month - 1]} ${to.year}`
+        return (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
+            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+              <h3 className="font-bold text-gray-800 text-lg mb-2">Copiar a {toLabel}</h3>
+              <p className="text-gray-600 text-sm mb-1">Se copiará una copia exacta de todas las nóminas de <strong>{MONTH_NAMES[month - 1]} {year}</strong> a <strong>{toLabel}</strong>.</p>
+              <p className="text-gray-400 text-xs mb-5">Las nóminas ya existentes en {toLabel} no se sobreescriben.</p>
+              <div className="flex gap-3">
+                <button onClick={() => setConfirmCopyDir(null)} className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-sm text-gray-600 font-medium">Cancelar</button>
+                <button onClick={() => doCopy(confirmCopyDir)} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700">Copiar</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
