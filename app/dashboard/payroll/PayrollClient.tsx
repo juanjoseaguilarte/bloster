@@ -471,7 +471,7 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
                 {copying ? 'Copiando...' : 'Copiar a ▾'}
               </button>
               {showCopyMenu && (
-                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 min-w-[180px]">
+                <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 min-w-[180px]">
                   <button onClick={() => handleCopy('prev')} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-t-xl">
                     ← {prevLabel}
                   </button>
