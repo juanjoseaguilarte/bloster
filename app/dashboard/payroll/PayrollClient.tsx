@@ -317,6 +317,9 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
   const [paying, setPayingId] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showExcluded, setShowExcluded] = useState(false)
+  const [showCopyMenu, setShowCopyMenu] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [copying, setCopying] = useState(false)
 
   function prevMonth() { if (month === 1) { setMonth(12); setYear(y => y - 1) } else setMonth(m => m - 1) }
   function nextMonth() { if (month === 12) { setMonth(1); setYear(y => y + 1) } else setMonth(m => m + 1) }
@@ -362,6 +365,41 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
       if (res.ok) { toast.success('Pago anulado'); fetchData() }
       else toast.error('Error')
     } finally { setPayingId(null) }
+  }
+
+  async function handleDeleteMonth() {
+    if (!confirm(`¿Borrar TODAS las nóminas de ${MONTH_NAMES[month - 1]} ${year}? Esta acción no se puede deshacer.`)) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`/api/salary/payroll/month?year=${year}&month=${month}`, { method: 'DELETE' })
+      if (res.ok) { const d = await res.json(); toast.success(`${d.deleted} nóminas eliminadas`); fetchData() }
+      else toast.error('Error al borrar')
+    } finally { setDeleting(false) }
+  }
+
+  function targetMonth(direction: 'prev' | 'next') {
+    if (direction === 'prev') {
+      return month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 }
+    }
+    return month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 }
+  }
+
+  async function handleCopy(direction: 'prev' | 'next') {
+    setShowCopyMenu(false)
+    const to = targetMonth(direction)
+    const label = `${MONTH_NAMES[to.month - 1]} ${to.year}`
+    if (!confirm(`¿Copiar nóminas de ${MONTH_NAMES[month - 1]} ${year} a ${label}?\nLos adelantos no se copian. Las nóminas ya existentes en ${label} no se sobreescriben.`)) return
+    setCopying(true)
+    try {
+      const res = await fetch('/api/salary/payroll/copy', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fromYear: year, fromMonth: month, toYear: to.year, toMonth: to.month }),
+      })
+      if (res.ok) {
+        const d = await res.json()
+        toast.success(`${d.copied} nóminas copiadas a ${label}${d.skipped ? ` (${d.skipped} ya existían)` : ''}`)
+      } else toast.error('Error al copiar')
+    } finally { setCopying(false) }
   }
 
   async function handleExclude(user: UserRow) {
@@ -411,6 +449,9 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
 
   const commonProps = { isAdmin, onRefresh: fetchData, onOpenModal: openModal, onConfig: (u: UserRow) => setConfigUser(u), onPay: handlePay, onUnpay: handleUnpay, onExclude: handleExclude, paying }
 
+  const prevLabel = (() => { const t = targetMonth('prev'); return `${MONTH_NAMES[t.month - 1]} ${t.year}` })()
+  const nextLabel = (() => { const t = targetMonth('next'); return `${MONTH_NAMES[t.month - 1]} ${t.year}` })()
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
@@ -419,9 +460,37 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
           <span className="font-bold text-gray-800 text-lg">{MONTH_NAMES[month - 1]} {year}</span>
           <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 text-xl font-light">›</button>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">
-          + Empleado
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {isAdmin && (
+            <div className="relative">
+              <button
+                onClick={() => setShowCopyMenu(v => !v)}
+                disabled={copying}
+                className="text-sm px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg font-medium hover:bg-gray-50 disabled:opacity-50"
+              >
+                {copying ? 'Copiando...' : 'Copiar a ▾'}
+              </button>
+              {showCopyMenu && (
+                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 min-w-[180px]">
+                  <button onClick={() => handleCopy('prev')} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-t-xl">
+                    ← {prevLabel}
+                  </button>
+                  <button onClick={() => handleCopy('next')} className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 border-t border-gray-100 rounded-b-xl">
+                    → {nextLabel}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+          {isAdmin && (
+            <button onClick={handleDeleteMonth} disabled={deleting} className="text-sm px-3 py-1.5 border border-red-200 text-red-500 rounded-lg font-medium hover:bg-red-50 disabled:opacity-50">
+              {deleting ? '...' : 'Borrar mes'}
+            </button>
+          )}
+          <button onClick={() => setShowAddModal(true)} className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">
+            + Empleado
+          </button>
+        </div>
       </div>
 
       {loading && <div className="text-center py-12 text-gray-400 text-sm">Cargando...</div>}
