@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
   })
 
   const [users, configs] = await Promise.all([
-    prisma.user.findMany({ where: { active: true }, select: { id: true, name: true, color: true, group: true } }),
+    prisma.user.findMany({ where: { active: true, payrollOnly: false }, select: { id: true, name: true, color: true, group: true } }),
     prisma.config.findMany(),
   ])
 

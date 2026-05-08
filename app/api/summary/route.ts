@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
       where: { weekScheduleId },
       include: { user: { select: { id: true, name: true, color: true } } },
     }),
-    prisma.user.findMany({ where: { active: true }, select: { id: true, name: true, color: true } }),
+    prisma.user.findMany({ where: { active: true, payrollOnly: false }, select: { id: true, name: true, color: true } }),
     prisma.config.findMany(),
   ])
 

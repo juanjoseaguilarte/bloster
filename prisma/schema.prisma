@@ -61,6 +61,7 @@ model User {
   color        String    @default("#3B82F6")
   group        UserGroup @default(BARRA)
   active       Boolean   @default(true)
+  payrollOnly  Boolean   @default(false)
   lastLoginAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -72,6 +73,7 @@ model User {
   salaryConfig   SalaryConfig?
   payrolls       MonthlyPayroll[]
   payrollsPaid   MonthlyPayroll[] @relation("PayrollPaidBy")
+  exclusions     PayrollExclusion[]
 }
 
 model SalaryConfig {
@@ -107,6 +109,15 @@ model MonthlyPayroll {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
+  @@unique([userId, year, month])
+}
+
+model PayrollExclusion {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  year    Int
+  month   Int
   @@unique([userId, year, month])
 }
 

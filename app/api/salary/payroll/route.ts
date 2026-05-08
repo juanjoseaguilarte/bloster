@@ -18,25 +18,28 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Missing year/month' }, { status: 400 })
   }
 
-  // Usuarios activos + inactivos con nómina en algún mes
-  const users = await prisma.user.findMany({
-    where: {
-      OR: [
-        { active: true },
-        { payrolls: { some: {} } },
-      ],
-    },
-    select: {
-      id: true, name: true, color: true, group: true, active: true,
-      salaryConfig: true,
-      payrolls: {
-        where: { year, month },
+  const [users, exclusions] = await Promise.all([
+    prisma.user.findMany({
+      where: {
+        OR: [
+          { active: true },
+          { payrolls: { some: {} } },
+        ],
       },
-    },
-    orderBy: { name: 'asc' },
-  })
+      select: {
+        id: true, name: true, color: true, group: true, active: true, payrollOnly: true,
+        salaryConfig: true,
+        payrolls: { where: { year, month } },
+      },
+      orderBy: { name: 'asc' },
+    }),
+    prisma.payrollExclusion.findMany({ where: { year, month }, select: { userId: true } }),
+  ])
 
-  return NextResponse.json(users)
+  const excludedIds = new Set(exclusions.map(e => e.userId))
+  const result = users.map(u => ({ ...u, excluded: excludedIds.has(u.id) }))
+
+  return NextResponse.json(result)
 }
 
 export async function POST(req: NextRequest) {

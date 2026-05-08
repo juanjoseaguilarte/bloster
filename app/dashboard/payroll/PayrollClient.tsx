@@ -40,6 +40,8 @@ interface UserRow {
   color: string
   group: string
   active: boolean
+  payrollOnly: boolean
+  excluded: boolean
   salaryConfig: SalaryConfig | null
   payrolls: Payroll[]
   suggested?: number | null
@@ -48,37 +50,24 @@ interface UserRow {
 
 const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 const TYPE_LABELS: Record<string, string> = { FIXED: 'Fijo', PER_SHIFT: 'Por bloster', MIXED: 'Mixto' }
+const COLORS = ['#EF4444','#F97316','#EAB308','#22C55E','#3B82F6','#8B5CF6','#EC4899','#06B6D4','#84CC16','#F59E0B','#14B8A6','#F43F5E']
 
 function fmt(n: number) {
   return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function EditableCell({
-  value,
-  isActive,
-  editable,
-  colorClass,
-  onActivate,
-  onChange,
-  onBlur,
+  value, isActive, editable, colorClass, onActivate, onChange, onBlur,
 }: {
-  value: number
-  isActive: boolean
-  editable: boolean
-  colorClass?: string
-  onActivate: () => void
-  onChange: (n: number) => void
-  onBlur: () => void
+  value: number; isActive: boolean; editable: boolean; colorClass?: string
+  onActivate: () => void; onChange: (n: number) => void; onBlur: () => void
 }) {
   if (isActive) {
     return (
       <input
-        type="number"
-        value={value}
+        type="number" value={value} step="0.01" autoFocus
         onChange={e => onChange(parseFloat(e.target.value) || 0)}
         onBlur={onBlur}
-        autoFocus
-        step="0.01"
         className="w-[78px] text-right border border-blue-400 rounded px-1.5 py-0.5 text-sm focus:outline-none bg-white"
       />
     )
@@ -93,30 +82,14 @@ function EditableCell({
   )
 }
 
-interface RowVals {
-  base: number
-  advances: number
-  garnishments: number
-  transfer: number
-}
+interface RowVals { base: number; advances: number; garnishments: number; transfer: number }
 
 function PayrollRow({
-  user,
-  isAdmin,
-  onRefresh,
-  onOpenModal,
-  onConfig,
-  onPay,
-  onUnpay,
-  paying,
+  user, isAdmin, onRefresh, onOpenModal, onConfig, onPay, onUnpay, onExclude, paying,
 }: {
-  user: UserRow
-  isAdmin: boolean
-  onRefresh: () => void
-  onOpenModal: (user: UserRow) => void
-  onConfig: (user: UserRow) => void
-  onPay: (p: Payroll) => void
-  onUnpay: (p: Payroll) => void
+  user: UserRow; isAdmin: boolean
+  onRefresh: () => void; onOpenModal: (u: UserRow) => void; onConfig: (u: UserRow) => void
+  onPay: (p: Payroll) => void; onUnpay: (p: Payroll) => void; onExclude: (u: UserRow) => void
   paying: string | null
 }) {
   const p = user.payrolls[0]
@@ -125,19 +98,15 @@ function PayrollRow({
   const editable = !!p && !isPaid
 
   const [vals, setVals] = useState<RowVals>({
-    base: p?.baseAmount ?? 0,
-    advances: p?.advances ?? 0,
-    garnishments: p?.garnishments ?? 0,
-    transfer: p?.transferAmount ?? 0,
+    base: p?.baseAmount ?? 0, advances: p?.advances ?? 0,
+    garnishments: p?.garnishments ?? 0, transfer: p?.transferAmount ?? 0,
   })
   const [active, setActive] = useState<keyof RowVals | null>(null)
   const valsRef = useRef(vals)
   useEffect(() => { valsRef.current = vals }, [vals])
 
   useEffect(() => {
-    if (p) {
-      setVals({ base: p.baseAmount, advances: p.advances, garnishments: p.garnishments, transfer: p.transferAmount })
-    }
+    if (p) setVals({ base: p.baseAmount, advances: p.advances, garnishments: p.garnishments, transfer: p.transferAmount })
   }, [p?.id, p?.baseAmount, p?.advances, p?.garnishments, p?.transferAmount])
 
   const net = +(vals.base - vals.advances - vals.garnishments).toFixed(2)
@@ -150,161 +119,190 @@ function PayrollRow({
     const netAmount = +(v.base - v.advances - v.garnishments).toFixed(2)
     const cashAmount = +(netAmount - v.transfer).toFixed(2)
     const res = await fetch(`/api/salary/payroll/${p.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        baseAmount: v.base,
-        advances: v.advances,
-        garnishments: v.garnishments,
-        transferAmount: v.transfer,
-        cashAmount,
-      }),
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ baseAmount: v.base, advances: v.advances, garnishments: v.garnishments, transferAmount: v.transfer, cashAmount }),
     })
     if (res.ok) onRefresh()
     else toast.error('Error al guardar')
   }
 
-  function update(field: keyof RowVals, n: number) {
-    setVals(v => ({ ...v, [field]: n }))
-  }
+  function update(field: keyof RowVals, n: number) { setVals(v => ({ ...v, [field]: n })) }
 
   return (
     <tr className={`border-t border-gray-100 ${isPaid ? 'bg-green-50/40' : ''}`}>
-      {/* Nombre */}
       <td className="px-4 py-3 sticky left-0 bg-white z-10 whitespace-nowrap" style={{ borderLeft: `3px solid ${user.color}` }}>
         <span className="font-medium text-gray-800">{user.name}</span>
         {!user.active && <span className="ml-1.5 text-xs bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full">Inactivo</span>}
+        {user.payrollOnly && <span className="ml-1.5 text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded-full">Solo Kombat</span>}
         {user.breakdown && user.salaryConfig && ['PER_SHIFT', 'MIXED'].includes(user.salaryConfig.type) && (() => {
           const total = user.breakdown.morningCount + user.breakdown.afternoonCount + user.breakdown.imaginaryCount
-          return (
-            <span className="ml-1.5 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">
-              {total} blosters
-            </span>
-          )
+          return <span className="ml-1.5 text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">{total} blosters</span>
         })()}
       </td>
-      {/* Tipo */}
       <td className="text-center px-3 py-3 whitespace-nowrap">
-        <button
-          onClick={() => onConfig(user)}
-          className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full hover:bg-blue-50 hover:text-blue-700 transition-colors"
-        >
+        <button onClick={() => onConfig(user)} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full hover:bg-blue-50 hover:text-blue-700 transition-colors">
           {user.salaryConfig ? TYPE_LABELS[user.salaryConfig.type] : '—'}
         </button>
       </td>
-      {/* Kombat */}
       <td className="text-right px-3 py-3">
         {p ? (
-          <EditableCell
-            value={vals.base}
-            isActive={active === 'base'}
-            editable={editable}
-            onActivate={() => setActive('base')}
-            onChange={n => update('base', n)}
-            onBlur={handleBlur}
-          />
+          <EditableCell value={vals.base} isActive={active === 'base'} editable={editable}
+            onActivate={() => setActive('base')} onChange={n => update('base', n)} onBlur={handleBlur} />
         ) : isSuggested ? (
           <span className="text-gray-400 italic whitespace-nowrap">{fmt(user.suggested!)} €</span>
-        ) : (
-          <span className="text-gray-300">—</span>
-        )}
+        ) : <span className="text-gray-300">—</span>}
       </td>
-      {/* Adelantos */}
       <td className="text-right px-3 py-3">
         {p ? (
-          <EditableCell
-            value={vals.advances}
-            isActive={active === 'advances'}
-            editable={editable}
+          <EditableCell value={vals.advances} isActive={active === 'advances'} editable={editable}
             colorClass={vals.advances > 0 ? 'text-orange-600 font-medium' : 'text-gray-400'}
-            onActivate={() => setActive('advances')}
-            onChange={n => update('advances', n)}
-            onBlur={handleBlur}
-          />
+            onActivate={() => setActive('advances')} onChange={n => update('advances', n)} onBlur={handleBlur} />
         ) : <span className="text-gray-300">—</span>}
       </td>
-      {/* Embargos */}
       <td className="text-right px-3 py-3">
         {p ? (
-          <EditableCell
-            value={vals.garnishments}
-            isActive={active === 'garnishments'}
-            editable={editable}
+          <EditableCell value={vals.garnishments} isActive={active === 'garnishments'} editable={editable}
             colorClass={vals.garnishments > 0 ? 'text-red-500 font-medium' : 'text-gray-400'}
-            onActivate={() => setActive('garnishments')}
-            onChange={n => update('garnishments', n)}
-            onBlur={handleBlur}
-          />
+            onActivate={() => setActive('garnishments')} onChange={n => update('garnishments', n)} onBlur={handleBlur} />
         ) : <span className="text-gray-300">—</span>}
       </td>
-      {/* Neto (calculado) */}
       <td className="text-right px-3 py-3 whitespace-nowrap">
-        {p ? (
-          <span className={`font-semibold ${net < 0 ? 'text-red-600' : 'text-gray-800'}`}>
-            {fmt(net)} €
-          </span>
-        ) : <span className="text-gray-300">—</span>}
+        {p ? <span className={`font-semibold ${net < 0 ? 'text-red-600' : 'text-gray-800'}`}>{fmt(net)} €</span>
+          : <span className="text-gray-300">—</span>}
       </td>
-      {/* Transferencia */}
       <td className="text-right px-3 py-3">
         {p ? (
-          <EditableCell
-            value={vals.transfer}
-            isActive={active === 'transfer'}
-            editable={editable}
+          <EditableCell value={vals.transfer} isActive={active === 'transfer'} editable={editable}
             colorClass="text-blue-700 font-medium"
-            onActivate={() => setActive('transfer')}
-            onChange={n => update('transfer', n)}
-            onBlur={handleBlur}
-          />
+            onActivate={() => setActive('transfer')} onChange={n => update('transfer', n)} onBlur={handleBlur} />
         ) : <span className="text-gray-300">—</span>}
       </td>
-      {/* Efectivo (calculado automáticamente) */}
       <td className="text-right px-3 py-3 whitespace-nowrap">
-        {p ? (
-          <span className="text-gray-600 font-medium">{fmt(cash)} €</span>
-        ) : <span className="text-gray-300">—</span>}
+        {p ? <span className="text-gray-600 font-medium">{fmt(cash)} €</span>
+          : <span className="text-gray-300">—</span>}
       </td>
-      {/* Estado */}
       <td className="text-center px-3 py-3 whitespace-nowrap">
-        {isPaid ? (
-          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">Pagado</span>
-        ) : p ? (
-          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Borrador</span>
-        ) : (
-          <span className="text-xs text-gray-300">Sin nómina</span>
-        )}
+        {isPaid ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">Pagado</span>
+          : p ? <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Borrador</span>
+          : <span className="text-xs text-gray-300">Sin nómina</span>}
       </td>
-      {/* Acciones */}
       <td className="px-3 py-3 text-right whitespace-nowrap">
-        {!p && (
-          <button
-            onClick={() => onOpenModal(user)}
-            className="text-xs text-blue-600 hover:text-blue-800"
-          >
-            Crear
-          </button>
-        )}
+        {!p && <button onClick={() => onOpenModal(user)} className="text-xs text-blue-600 hover:text-blue-800 mr-2">Crear</button>}
         {p && !isPaid && (
-          <button
-            onClick={() => onPay(p)}
-            disabled={paying === p.id}
-            className="text-xs text-green-600 hover:text-green-800 disabled:opacity-50"
-          >
+          <button onClick={() => onPay(p)} disabled={paying === p.id} className="text-xs text-green-600 hover:text-green-800 disabled:opacity-50 mr-2">
             ✓ Pagar
           </button>
         )}
         {p && isPaid && isAdmin && (
-          <button
-            onClick={() => onUnpay(p)}
-            disabled={paying === p.id}
-            className="text-xs text-red-400 hover:text-red-600 disabled:opacity-50"
-          >
+          <button onClick={() => onUnpay(p)} disabled={paying === p.id} className="text-xs text-red-400 hover:text-red-600 disabled:opacity-50 mr-2">
             Anular
           </button>
         )}
+        <button onClick={() => onExclude(user)} className="text-xs text-gray-300 hover:text-gray-500">
+          Excluir
+        </button>
       </td>
     </tr>
+  )
+}
+
+function GroupSection({
+  title, rows, isAdmin, onRefresh, onOpenModal, onConfig, onPay, onUnpay, onExclude, paying,
+}: {
+  title: string; rows: UserRow[]; isAdmin: boolean
+  onRefresh: () => void; onOpenModal: (u: UserRow) => void; onConfig: (u: UserRow) => void
+  onPay: (p: Payroll) => void; onUnpay: (p: Payroll) => void; onExclude: (u: UserRow) => void
+  paying: string | null
+}) {
+  if (rows.length === 0) return null
+  const withP = rows.filter(u => u.payrolls[0])
+  const subBase = withP.reduce((a, u) => a + u.payrolls[0].baseAmount, 0)
+  const subNet = withP.reduce((a, u) => a + u.payrolls[0].netAmount, 0)
+  const subTransfer = withP.reduce((a, u) => a + u.payrolls[0].transferAmount, 0)
+  const subCash = withP.reduce((a, u) => a + u.payrolls[0].cashAmount, 0)
+
+  return (
+    <>
+      <tr className="bg-gray-100">
+        <td colSpan={10} className="px-4 py-1.5 text-xs font-bold text-gray-500 uppercase tracking-wider sticky left-0">{title}</td>
+      </tr>
+      {rows.map(user => (
+        <PayrollRow key={user.id} user={user} isAdmin={isAdmin}
+          onRefresh={onRefresh} onOpenModal={onOpenModal} onConfig={onConfig}
+          onPay={onPay} onUnpay={onUnpay} onExclude={onExclude} paying={paying} />
+      ))}
+      {withP.length > 0 && (
+        <tr className="bg-gray-50 text-xs text-gray-500 font-semibold">
+          <td className="px-4 py-1.5 sticky left-0 bg-gray-50">Subtotal {title}</td>
+          <td /><td className="text-right px-3 py-1.5">{fmt(subBase)} €</td>
+          <td /><td /><td className="text-right px-3 py-1.5 text-gray-700">{fmt(subNet)} €</td>
+          <td className="text-right px-3 py-1.5 text-blue-600">{fmt(subTransfer)} €</td>
+          <td className="text-right px-3 py-1.5">{fmt(subCash)} €</td>
+          <td /><td />
+        </tr>
+      )}
+    </>
+  )
+}
+
+function AddKombatUserModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [name, setName] = useState('')
+  const [group, setGroup] = useState<'BARRA' | 'COCINA'>('BARRA')
+  const [color, setColor] = useState('#3B82F6')
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave() {
+    if (!name.trim()) return toast.error('Introduce un nombre')
+    setSaving(true)
+    try {
+      const res = await fetch('/api/users', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), group, color, payrollOnly: true }),
+      })
+      if (res.ok) { toast.success('Empleado añadido'); onSaved() }
+      else toast.error('Error al crear')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-[9999] p-4">
+      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+        <h3 className="font-bold text-gray-800 text-lg mb-1">Añadir empleado</h3>
+        <p className="text-gray-400 text-xs mb-4">Solo aparece en Kombat, sin acceso a la app</p>
+        <div className="space-y-3">
+          <input
+            type="text" placeholder="Nombre" value={name} onChange={e => setName(e.target.value)} autoFocus
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <div className="flex gap-2">
+            {(['BARRA', 'COCINA'] as const).map(g => (
+              <button key={g} type="button" onClick={() => setGroup(g)}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold border-2 transition-all ${group === g ? 'border-blue-600 text-blue-600' : 'border-gray-200 text-gray-500'}`}>
+                {g === 'BARRA' ? 'Barra' : 'Cocina'}
+              </button>
+            ))}
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-2 block">Color</label>
+            <div className="flex gap-2 flex-wrap">
+              {COLORS.map(c => (
+                <button key={c} type="button" onClick={() => setColor(c)}
+                  className={`w-7 h-7 rounded-full border-2 transition-all ${color === c ? 'border-gray-800 scale-110' : 'border-transparent'}`}
+                  style={{ backgroundColor: c }} />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-3 mt-5">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-sm text-gray-600 font-medium">Cancelar</button>
+          <button onClick={handleSave} disabled={saving} className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50">
+            {saving ? '...' : 'Añadir'}
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -317,6 +315,8 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
   const [editPayroll, setEditPayroll] = useState<{ user: UserRow; payroll: Payroll } | null>(null)
   const [configUser, setConfigUser] = useState<UserRow | null>(null)
   const [paying, setPayingId] = useState<string | null>(null)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showExcluded, setShowExcluded] = useState(false)
 
   function prevMonth() { if (month === 1) { setMonth(12); setYear(y => y - 1) } else setMonth(m => m - 1) }
   function nextMonth() { if (month === 12) { setMonth(1); setYear(y => y + 1) } else setMonth(m => m + 1) }
@@ -333,11 +333,7 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
           if (!needsSuggest) return u
           const sug = await fetch(`/api/salary/suggest?year=${year}&month=${month}&userId=${u.id}`)
           const data = await sug.json()
-          return {
-            ...u,
-            suggested: u.payrolls.length === 0 ? (data.amount ?? null) : u.suggested,
-            breakdown: data.breakdown ?? null,
-          }
+          return { ...u, suggested: u.payrolls.length === 0 ? (data.amount ?? null) : u.suggested, breakdown: data.breakdown ?? null }
         })
       )
       setRows(withSuggestions)
@@ -355,9 +351,7 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
       const res = await fetch(`/api/salary/payroll/${payroll.id}/pay`, { method: 'POST' })
       if (res.ok) { toast.success('Marcado como pagado'); fetchData() }
       else toast.error('Error')
-    } finally {
-      setPayingId(null)
-    }
+    } finally { setPayingId(null) }
   }
 
   async function handleUnpay(payroll: Payroll) {
@@ -367,9 +361,25 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
       const res = await fetch(`/api/salary/payroll/${payroll.id}/pay`, { method: 'DELETE' })
       if (res.ok) { toast.success('Pago anulado'); fetchData() }
       else toast.error('Error')
-    } finally {
-      setPayingId(null)
-    }
+    } finally { setPayingId(null) }
+  }
+
+  async function handleExclude(user: UserRow) {
+    const res = await fetch('/api/salary/payroll/exclude', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user.id, year, month }),
+    })
+    if (res.ok) { toast.success(`${user.name} excluido este mes`); fetchData() }
+    else toast.error('Error')
+  }
+
+  async function handleInclude(user: UserRow) {
+    const res = await fetch('/api/salary/payroll/exclude', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user.id, year, month }),
+    })
+    if (res.ok) { toast.success(`${user.name} incluido`); fetchData() }
+    else toast.error('Error')
   }
 
   function openModal(user: UserRow) {
@@ -382,7 +392,16 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
     setEditPayroll({ user, payroll })
   }
 
-  const withPayroll = rows.filter(u => u.payrolls[0])
+  const included = rows.filter(u => !u.excluded)
+  const excluded = rows.filter(u => u.excluded)
+
+  const groups = [
+    { key: 'COCINA', label: 'Cocina', rows: included.filter(u => u.group === 'COCINA') },
+    { key: 'BARRA', label: 'Barra', rows: included.filter(u => u.group === 'BARRA') },
+    { key: 'OTROS', label: 'Otros', rows: included.filter(u => u.group !== 'COCINA' && u.group !== 'BARRA') },
+  ]
+
+  const withPayroll = included.filter(u => u.payrolls[0])
   const totalBase = withPayroll.reduce((a, u) => a + u.payrolls[0].baseAmount, 0)
   const totalAdv = withPayroll.reduce((a, u) => a + u.payrolls[0].advances, 0)
   const totalGarn = withPayroll.reduce((a, u) => a + u.payrolls[0].garnishments, 0)
@@ -390,12 +409,19 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
   const totalTransfer = withPayroll.reduce((a, u) => a + u.payrolls[0].transferAmount, 0)
   const totalCash = withPayroll.reduce((a, u) => a + u.payrolls[0].cashAmount, 0)
 
+  const commonProps = { isAdmin, onRefresh: fetchData, onOpenModal: openModal, onConfig: (u: UserRow) => setConfigUser(u), onPay: handlePay, onUnpay: handleUnpay, onExclude: handleExclude, paying }
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <button onClick={prevMonth} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 text-xl font-light">‹</button>
-        <span className="font-bold text-gray-800 text-lg">{MONTH_NAMES[month - 1]} {year}</span>
-        <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 text-xl font-light">›</button>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <button onClick={prevMonth} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 text-xl font-light">‹</button>
+          <span className="font-bold text-gray-800 text-lg">{MONTH_NAMES[month - 1]} {year}</span>
+          <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-600 text-xl font-light">›</button>
+        </div>
+        <button onClick={() => setShowAddModal(true)} className="text-sm px-3 py-1.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">
+          + Empleado
+        </button>
       </div>
 
       {loading && <div className="text-center py-12 text-gray-400 text-sm">Cargando...</div>}
@@ -415,22 +441,12 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
                   <th className="text-right px-3 py-3 font-semibold whitespace-nowrap w-[110px]">Transf.</th>
                   <th className="text-right px-3 py-3 font-semibold whitespace-nowrap w-[110px]">Efectivo</th>
                   <th className="text-center px-3 py-3 font-semibold whitespace-nowrap">Estado</th>
-                  <th className="px-3 py-3 w-16" />
+                  <th className="px-3 py-3 w-28" />
                 </tr>
               </thead>
               <tbody>
-                {rows.map(user => (
-                  <PayrollRow
-                    key={user.id}
-                    user={user}
-                    isAdmin={isAdmin}
-                    onRefresh={fetchData}
-                    onOpenModal={openModal}
-                    onConfig={u => setConfigUser(u)}
-                    onPay={handlePay}
-                    onUnpay={handleUnpay}
-                    paying={paying}
-                  />
+                {groups.map(g => (
+                  <GroupSection key={g.key} title={g.label} rows={g.rows} {...commonProps} />
                 ))}
 
                 {withPayroll.length > 0 && (
@@ -446,6 +462,31 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
                     <td /><td />
                   </tr>
                 )}
+
+                {/* Excluidos */}
+                {excluded.length > 0 && (
+                  <>
+                    <tr
+                      className="border-t border-gray-200 bg-gray-50 cursor-pointer hover:bg-gray-100"
+                      onClick={() => setShowExcluded(v => !v)}
+                    >
+                      <td colSpan={10} className="px-4 py-2 text-xs text-gray-400 font-semibold sticky left-0">
+                        {showExcluded ? '▾' : '▸'} Excluidos este mes ({excluded.length})
+                      </td>
+                    </tr>
+                    {showExcluded && excluded.map(user => (
+                      <tr key={user.id} className="border-t border-gray-100 bg-gray-50/50 opacity-60">
+                        <td className="px-4 py-2 sticky left-0 bg-gray-50 whitespace-nowrap" style={{ borderLeft: `3px solid ${user.color}` }}>
+                          <span className="text-sm text-gray-500">{user.name}</span>
+                        </td>
+                        <td colSpan={8} className="px-3 py-2 text-xs text-gray-400 italic">Excluido este mes</td>
+                        <td className="px-3 py-2 text-right">
+                          <button onClick={() => handleInclude(user)} className="text-xs text-blue-600 hover:text-blue-800">Incluir</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </>
+                )}
               </tbody>
             </table>
           </div>
@@ -453,21 +494,15 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
       )}
 
       {editPayroll && (
-        <PayrollModal
-          payroll={editPayroll.payroll}
-          userName={editPayroll.user.name}
-          onClose={() => setEditPayroll(null)}
-          onSaved={() => { setEditPayroll(null); fetchData() }}
-        />
+        <PayrollModal payroll={editPayroll.payroll} userName={editPayroll.user.name}
+          onClose={() => setEditPayroll(null)} onSaved={() => { setEditPayroll(null); fetchData() }} />
       )}
       {configUser && (
-        <SalaryConfigModal
-          userId={configUser.id}
-          userName={configUser.name}
-          current={configUser.salaryConfig}
-          onClose={() => setConfigUser(null)}
-          onSaved={() => { setConfigUser(null); fetchData() }}
-        />
+        <SalaryConfigModal userId={configUser.id} userName={configUser.name} current={configUser.salaryConfig}
+          onClose={() => setConfigUser(null)} onSaved={() => { setConfigUser(null); fetchData() }} />
+      )}
+      {showAddModal && (
+        <AddKombatUserModal onClose={() => setShowAddModal(false)} onSaved={() => { setShowAddModal(false); fetchData() }} />
       )}
     </div>
   )
