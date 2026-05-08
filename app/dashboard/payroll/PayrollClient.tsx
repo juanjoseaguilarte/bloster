@@ -119,10 +119,16 @@ function EmployeeMenu({
           </button>
 
           {/* Blosters */}
-          {shiftTotal !== null && user.salaryConfig && ['PER_SHIFT', 'MIXED'].includes(user.salaryConfig.type) && (
+          {user.breakdown && (
             <div className="flex items-center justify-between py-3 border-b border-gray-50">
               <span className="text-sm text-gray-600">Blosters este mes</span>
-              <span className="text-sm font-bold text-blue-700">{shiftTotal}</span>
+              <span className="text-sm font-bold text-blue-700">
+                {user.breakdown.morningCount + user.breakdown.afternoonCount + user.breakdown.imaginaryCount}
+                <span className="text-xs font-normal text-gray-400 ml-1">
+                  ({user.breakdown.morningCount}M · {user.breakdown.afternoonCount}T
+                  {user.breakdown.imaginaryCount > 0 ? ` · ${user.breakdown.imaginaryCount}I` : ''})
+                </span>
+              </span>
             </div>
           )}
 
@@ -411,12 +417,15 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
       const users: UserRow[] = await res.json()
       const withSuggestions = await Promise.all(
         users.map(async u => {
-          const needsSuggest = !u.salaryConfig ? false :
-            u.payrolls.length === 0 || ['PER_SHIFT', 'MIXED'].includes(u.salaryConfig.type)
-          if (!needsSuggest) return u
           const sug = await fetch(`/api/salary/suggest?year=${year}&month=${month}&userId=${u.id}`)
           const data = await sug.json()
-          return { ...u, suggested: u.payrolls.length === 0 ? (data.amount ?? null) : u.suggested, breakdown: data.breakdown ?? null }
+          const needsAmount = !u.salaryConfig ? false :
+            u.payrolls.length === 0 || ['PER_SHIFT', 'MIXED'].includes(u.salaryConfig.type)
+          return {
+            ...u,
+            suggested: needsAmount ? (data.amount ?? null) : u.suggested,
+            breakdown: data.breakdown ?? null,
+          }
         })
       )
       setRows(withSuggestions)
