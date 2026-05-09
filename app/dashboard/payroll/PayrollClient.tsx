@@ -406,6 +406,9 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
   const [copying, setCopying] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmCopyDir, setConfirmCopyDir] = useState<'prev' | 'next' | null>(null)
+  const [socialSecurity, setSocialSecurity] = useState(0)
+  const [ssEditing, setSsEditing] = useState(false)
+  const [ssValue, setSsValue] = useState(0)
 
   function prevMonth() { if (month === 1) { setMonth(12); setYear(y => y - 1) } else setMonth(m => m - 1) }
   function nextMonth() { if (month === 12) { setMonth(1); setYear(y => y + 1) } else setMonth(m => m + 1) }
@@ -413,8 +416,12 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/salary/payroll?year=${year}&month=${month}`)
+      const [res, ssRes] = await Promise.all([
+        fetch(`/api/salary/payroll?year=${year}&month=${month}`),
+        fetch(`/api/salary/social-security?year=${year}&month=${month}`),
+      ])
       const users: UserRow[] = await res.json()
+      const ssData = await ssRes.json()
       const withSuggestions = await Promise.all(
         users.map(async u => {
           const sug = await fetch(`/api/salary/suggest?year=${year}&month=${month}&userId=${u.id}`)
@@ -429,6 +436,8 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
         })
       )
       setRows(withSuggestions)
+      setSocialSecurity(ssData.amount ?? 0)
+      setSsValue(ssData.amount ?? 0)
     } finally {
       setLoading(false)
     }
@@ -526,12 +535,21 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
   ]
 
   const withPayroll = included.filter(u => u.payrolls[0])
-  const totalBase = withPayroll.reduce((a, u) => a + u.payrolls[0].baseAmount, 0)
+  const totalBase = withPayroll.reduce((a, u) => a + u.payrolls[0].baseAmount, 0) + socialSecurity
   const totalAdv = withPayroll.reduce((a, u) => a + u.payrolls[0].advances, 0)
   const totalGarn = withPayroll.reduce((a, u) => a + u.payrolls[0].garnishments, 0)
-  const totalNet = withPayroll.reduce((a, u) => a + u.payrolls[0].netAmount, 0)
+  const totalNet = withPayroll.reduce((a, u) => a + u.payrolls[0].netAmount, 0) + socialSecurity
   const totalTransfer = withPayroll.reduce((a, u) => a + u.payrolls[0].transferAmount, 0)
   const totalCash = withPayroll.reduce((a, u) => a + u.payrolls[0].cashAmount, 0)
+
+  async function saveSocialSecurity(value: number) {
+    setSsEditing(false)
+    setSocialSecurity(value)
+    await fetch('/api/salary/social-security', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ year, month, amount: value }),
+    })
+  }
 
   const commonProps = { isAdmin, year, month, onRefresh: fetchData, onOpenModal: openModal, onConfig: (u: UserRow) => setConfigUser(u), onPay: handlePay, onUnpay: handleUnpay, onExclude: handleExclude, paying }
 
@@ -600,6 +618,34 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
                 {groups.map(g => (
                   <GroupSection key={g.key} title={g.label} rows={g.rows} {...commonProps} />
                 ))}
+
+                {/* Seguridad Social */}
+                <tr className="border-t border-gray-200 bg-purple-50/40">
+                  <td className="px-4 py-2.5 sticky left-0 bg-purple-50/40 whitespace-nowrap">
+                    <span className="text-sm font-medium text-purple-800">Seguridad Social</span>
+                  </td>
+                  <td className="text-right px-3 py-2.5">
+                    {ssEditing ? (
+                      <input
+                        type="number" value={ssValue} step="0.01" autoFocus
+                        onChange={e => setSsValue(parseFloat(e.target.value) || 0)}
+                        onBlur={() => saveSocialSecurity(ssValue)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveSocialSecurity(ssValue) }}
+                        className="w-[78px] text-right border border-purple-400 rounded px-1.5 py-0.5 text-sm focus:outline-none bg-white"
+                      />
+                    ) : (
+                      <span
+                        onClick={isAdmin ? () => { setSsValue(socialSecurity); setSsEditing(true) } : undefined}
+                        className={`inline-block whitespace-nowrap rounded px-1 font-medium text-purple-800 ${isAdmin ? 'cursor-pointer hover:bg-purple-100' : ''}`}
+                      >
+                        {fmt(socialSecurity)} €
+                      </span>
+                    )}
+                  </td>
+                  <td /><td />
+                  <td className="text-right px-3 py-2.5 whitespace-nowrap font-medium text-purple-800">{fmt(socialSecurity)} €</td>
+                  <td /><td />
+                </tr>
 
                 {withPayroll.length > 0 && (
                   <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-sm">

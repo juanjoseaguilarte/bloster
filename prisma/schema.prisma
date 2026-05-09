@@ -162,6 +162,14 @@ model Shift {
   @@unique([userId, weekScheduleId, day, period])
 }
 
+model MonthSocialSecurity {
+  id     String @id @default(cuid())
+  year   Int
+  month  Int
+  amount Float  @default(0)
+  @@unique([year, month])
+}
+
 model Config {
   id    String @id @default(cuid())
   key   String @unique
