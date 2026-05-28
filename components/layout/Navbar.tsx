@@ -54,10 +54,12 @@ export default function Navbar() {
         { href: '/dashboard', label: 'Blosters' },
         { href: '/dashboard/users', label: 'Empleados' },
         { href: '/dashboard/payroll', label: 'Kombat' },
+        { href: '/dashboard/limpieza', label: 'Limpieza' },
         { href: '/dashboard/profile', label: 'Mi perfil' },
       ]
     : [
         { href: '/dashboard', label: 'Mi Bloster' },
+        { href: '/dashboard/limpieza', label: 'Limpieza' },
         { href: '/dashboard/profile', label: 'Mi perfil' },
       ]
 
