@@ -635,8 +635,8 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
                       />
                     ) : (
                       <span
-                        onClick={isAdmin ? () => { setSsValue(socialSecurity); setSsEditing(true) } : undefined}
-                        className={`inline-block whitespace-nowrap rounded px-1 font-medium text-purple-800 ${isAdmin ? 'cursor-pointer hover:bg-purple-100' : ''}`}
+                        onClick={() => { setSsValue(socialSecurity); setSsEditing(true) }}
+                        className="inline-block whitespace-nowrap rounded px-1 font-medium text-purple-800 cursor-pointer hover:bg-purple-100"
                       >
                         {fmt(socialSecurity)} €
                       </span>
