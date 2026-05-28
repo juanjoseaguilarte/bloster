@@ -7,7 +7,7 @@ interface User {
   id: string
   name: string
   color: string
-  group: string
+  group: 'BARRA' | 'COCINA'
 }
 
 interface Props {
