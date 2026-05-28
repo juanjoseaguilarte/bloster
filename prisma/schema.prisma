@@ -196,6 +196,7 @@ model LimpiezaTask {
   createdAt   DateTime  @default(now())
 
   completions LimpiezaCompletion[]
+  urgents     LimpiezaUrgent[]
 }
 
 model LimpiezaCompletion {
@@ -207,6 +208,17 @@ model LimpiezaCompletion {
   userId      String
   user        User         @relation(fields: [userId], references: [id])
   completedAt DateTime     @default(now())
+
+  @@unique([taskId, weekStart, dayOfWeek])
+}
+
+model LimpiezaUrgent {
+  id        String       @id @default(cuid())
+  taskId    String
+  task      LimpiezaTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  weekStart DateTime
+  dayOfWeek DayOfWeek
+  markedAt  DateTime     @default(now())
 
   @@unique([taskId, weekStart, dayOfWeek])
 }

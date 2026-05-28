@@ -20,6 +20,13 @@ interface LimpiezaCompletion {
   user: { id: string; name: string }
 }
 
+interface LimpiezaUrgent {
+  id: string
+  taskId: string
+  dayOfWeek: string
+  weekStart: string
+}
+
 interface SectionUser {
   id: string
   name: string
@@ -37,9 +44,11 @@ export default function LimpiezaClient({ isStaff }: Props) {
   const [currentWeek, setCurrentWeek] = useState(() => getWeekStart(new Date()))
   const [tasks, setTasks] = useState<LimpiezaTask[]>([])
   const [completions, setCompletions] = useState<LimpiezaCompletion[]>([])
+  const [urgents, setUrgents] = useState<LimpiezaUrgent[]>([])
   const [sectionUsers, setSectionUsers] = useState<SectionUser[]>([])
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState<string | null>(null)
+  const [urgentToggling, setUrgentToggling] = useState<string | null>(null)
   const [dropdownCell, setDropdownCell] = useState<{ taskId: string; dayOfWeek: string } | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [newTaskName, setNewTaskName] = useState('')
@@ -47,14 +56,12 @@ export default function LimpiezaClient({ isStaff }: Props) {
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
-  // Leer sección guardada en localStorage
   useEffect(() => {
     const saved = localStorage.getItem('limpieza-section') as 'BARRA' | 'COCINA' | null
     if (saved === 'BARRA' || saved === 'COCINA') setActiveSection(saved)
     setSectionLoaded(true)
   }, [])
 
-  // Cargar usuarios de la sección activa
   useEffect(() => {
     if (!sectionLoaded) return
     fetch(`/api/limpieza/users?section=${activeSection}`)
@@ -68,13 +75,17 @@ export default function LimpiezaClient({ isStaff }: Props) {
     if (!silent) setLoading(true)
     const weekKey = getWeekKey(currentWeek)
     try {
-      const [tasksRes, completionsRes] = await Promise.all([
+      const [tasksRes, completionsRes, urgentsRes] = await Promise.all([
         fetch(`/api/limpieza/tasks?section=${activeSection}`),
         fetch(`/api/limpieza/completions?weekKey=${weekKey}&section=${activeSection}`),
+        fetch(`/api/limpieza/urgent?weekKey=${weekKey}&section=${activeSection}`),
       ])
-      const [tasksData, completionsData] = await Promise.all([tasksRes.json(), completionsRes.json()])
+      const [tasksData, completionsData, urgentsData] = await Promise.all([
+        tasksRes.json(), completionsRes.json(), urgentsRes.json(),
+      ])
       setTasks(Array.isArray(tasksData) ? tasksData : [])
       setCompletions(Array.isArray(completionsData) ? completionsData : [])
+      setUrgents(Array.isArray(urgentsData) ? urgentsData : [])
     } catch {
       if (!silent) toast.error('Error al cargar datos')
     } finally {
@@ -93,14 +104,49 @@ export default function LimpiezaClient({ isStaff }: Props) {
     return completions.find(c => c.taskId === taskId && c.dayOfWeek === dayOfWeek) ?? null
   }
 
+  function getUrgent(taskId: string, dayOfWeek: string): LimpiezaUrgent | null {
+    return urgents.find(u => u.taskId === taskId && u.dayOfWeek === dayOfWeek) ?? null
+  }
+
   function handleCellClick(taskId: string, dayOfWeek: string) {
+    if (isStaff) {
+      handleToggleUrgent(taskId, dayOfWeek)
+      return
+    }
     const completion = getCompletion(taskId, dayOfWeek)
     if (completion) {
-      // Ya marcada → desmarcar directamente
       handleToggle(taskId, dayOfWeek, null)
     } else {
-      // Vacía → abrir dropdown de usuarios
       setDropdownCell({ taskId, dayOfWeek })
+    }
+  }
+
+  async function handleToggleUrgent(taskId: string, dayOfWeek: string) {
+    const key = `${taskId}-${dayOfWeek}`
+    if (urgentToggling === key) return
+    setUrgentToggling(key)
+
+    const weekKey = getWeekKey(currentWeek)
+    try {
+      const res = await fetch('/api/limpieza/urgent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, weekKey, dayOfWeek }),
+      })
+      if (res.ok) {
+        const { action, urgent } = await res.json()
+        if (action === 'marked') {
+          setUrgents(prev => [...prev, urgent])
+        } else {
+          setUrgents(prev => prev.filter(u => !(u.taskId === taskId && u.dayOfWeek === dayOfWeek)))
+        }
+      } else if (res.status !== 409) {
+        toast.error('Error al actualizar')
+      }
+    } catch {
+      toast.error('Error al actualizar')
+    } finally {
+      setUrgentToggling(null)
     }
   }
 
@@ -187,6 +233,7 @@ export default function LimpiezaClient({ isStaff }: Props) {
       if (res.ok) {
         setTasks(prev => prev.filter(t => t.id !== taskId))
         setCompletions(prev => prev.filter(c => c.taskId !== taskId))
+        setUrgents(prev => prev.filter(u => u.taskId !== taskId))
         toast.success('Tarea eliminada')
       } else {
         toast.error('Error al eliminar')
@@ -259,6 +306,12 @@ export default function LimpiezaClient({ isStaff }: Props) {
         ))}
       </div>
 
+      {isStaff && (
+        <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          Pulsa en una celda para marcarla como <strong>urgente</strong> (naranja). Los empleados de limpieza verán el aviso.
+        </p>
+      )}
+
       {/* Grid */}
       {loading ? (
         <div className="text-sm text-gray-400 py-8 text-center">Cargando...</div>
@@ -309,17 +362,26 @@ export default function LimpiezaClient({ isStaff }: Props) {
                     </td>
                     {DAYS.map(d => {
                       const completion = getCompletion(task.id, d.key)
+                      const urgent = getUrgent(task.id, d.key)
                       const toggleKey = `${task.id}-${d.key}`
-                      const isToggling = toggling === toggleKey
+                      const isTogglingCell = toggling === toggleKey || urgentToggling === toggleKey
+
+                      let cellBg = 'bg-white hover:bg-gray-50'
+                      if (completion) {
+                        cellBg = 'bg-green-50 hover:bg-green-100'
+                      } else if (urgent) {
+                        cellBg = 'bg-amber-50 hover:bg-amber-100'
+                      }
+
                       return (
                         <td
                           key={d.key}
-                          onClick={isToggling ? undefined : () => handleCellClick(task.id, d.key)}
+                          onClick={isTogglingCell ? undefined : () => handleCellClick(task.id, d.key)}
                           className={`text-center px-1 py-2 border border-gray-100 min-w-[72px] cursor-pointer transition-colors select-none ${
-                            isToggling ? 'opacity-50' : ''
-                          } ${completion ? 'bg-green-50 hover:bg-green-100' : 'bg-white hover:bg-gray-50'}`}
+                            isTogglingCell ? 'opacity-50' : ''
+                          } ${cellBg}`}
                         >
-                          {isToggling ? (
+                          {isTogglingCell ? (
                             <span className="text-gray-300 text-xs">...</span>
                           ) : completion ? (
                             <div className="flex flex-col items-center gap-0.5">
@@ -327,6 +389,11 @@ export default function LimpiezaClient({ isStaff }: Props) {
                               <span className="text-xs text-green-700 font-medium leading-tight max-w-[60px] truncate">
                                 {completion.user.name.split(' ')[0]}
                               </span>
+                            </div>
+                          ) : urgent ? (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className="text-amber-500 text-base font-bold leading-none">!</span>
+                              <span className="text-xs text-amber-600 font-semibold leading-tight">Urgente</span>
                             </div>
                           ) : (
                             <span className="text-gray-200 text-lg leading-none">+</span>
