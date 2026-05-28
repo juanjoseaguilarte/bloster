@@ -70,6 +70,7 @@ model User {
   shifts         Shift[]
   closedWeeks    WeekSchedule[]   @relation("ClosedBy")
   clearedWeeks   WeekClearLog[]   @relation("ClearedBy")
+  limpiezaCompletions LimpiezaCompletion[]
   pushSubs       PushSubscription[]
   salaryConfig   SalaryConfig?
   payrolls       MonthlyPayroll[]
@@ -183,4 +184,28 @@ model WeekClearLog {
   clearedById String?
   clearedBy   User?    @relation("ClearedBy", fields: [clearedById], references: [id])
   shifts      Json
+}
+
+model LimpiezaTask {
+  id          String    @id @default(cuid())
+  name        String
+  section     UserGroup
+  order       Int       @default(0)
+  active      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  completions LimpiezaCompletion[]
+}
+
+model LimpiezaCompletion {
+  id          String       @id @default(cuid())
+  taskId      String
+  task        LimpiezaTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  weekStart   DateTime
+  dayOfWeek   DayOfWeek
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  completedAt DateTime     @default(now())
+
+  @@unique([taskId, weekStart, dayOfWeek])
 }
