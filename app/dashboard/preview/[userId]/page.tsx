@@ -3,7 +3,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import EmployeeScheduleView from '@/components/schedule/EmployeeScheduleView'
-import WeekGrid from '@/components/schedule/WeekGrid'
+import PreviewTabs from './PreviewTabs'
 import Link from 'next/link'
 
 export default async function PreviewPage({ params }: { params: { userId: string } }) {
@@ -48,10 +48,10 @@ export default async function PreviewPage({ params }: { params: { userId: string
         {user.role === 'EMPLEADO' ? (
           <EmployeeScheduleView userId={user.id} />
         ) : (
-          <div>
-            <h1 className="text-xl font-bold text-gray-800 mb-4">Cuadrante semanal</h1>
-            <WeekGrid users={gridUsers} readOnly={false} simulatedRole={user.role as 'GESTOR' | 'ADMIN'} />
-          </div>
+          <PreviewTabs
+            simulatedRole={user.role as 'GESTOR' | 'ADMIN'}
+            gridUsers={gridUsers}
+          />
         )}
       </div>
     </div>
