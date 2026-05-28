@@ -179,7 +179,7 @@ export default function LimpiezaClient({ isStaff }: Props) {
   }
 
   function sortAlphabetically() {
-    const sorted = [...tasks].sort((a, b) => a.name.localeCompare(b, 'es', { sensitivity: 'base' }))
+    const sorted = [...tasks].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
     setTasks(sorted)
     saveOrder(sorted)
   }
