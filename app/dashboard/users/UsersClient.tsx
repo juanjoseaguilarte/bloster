@@ -196,6 +196,7 @@ export default function UsersClient({ isAdmin }: { isAdmin: boolean }) {
                   <option value="EMPLEADO">Empleado</option>
                   <option value="GESTOR">Gestor</option>
                   {isAdmin && <option value="ADMIN">Admin</option>}
+                  {isAdmin && <option value="LIMPIEZA">Limpieza</option>}
                 </select>
                 <select value={form.group} onChange={e => setForm({...form, group: e.target.value})} className="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 text-sm">
                   <option value="BARRA">Barra</option>
