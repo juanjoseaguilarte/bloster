@@ -20,6 +20,11 @@ interface LimpiezaCompletion {
   user: { id: string; name: string }
 }
 
+interface SectionUser {
+  id: string
+  name: string
+}
+
 interface Props {
   isStaff: boolean
   userId: string
@@ -28,18 +33,38 @@ interface Props {
 
 export default function LimpiezaClient({ isStaff }: Props) {
   const [activeSection, setActiveSection] = useState<'BARRA' | 'COCINA'>('BARRA')
+  const [sectionLoaded, setSectionLoaded] = useState(false)
   const [currentWeek, setCurrentWeek] = useState(() => getWeekStart(new Date()))
   const [tasks, setTasks] = useState<LimpiezaTask[]>([])
   const [completions, setCompletions] = useState<LimpiezaCompletion[]>([])
+  const [sectionUsers, setSectionUsers] = useState<SectionUser[]>([])
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState<string | null>(null)
+  const [dropdownCell, setDropdownCell] = useState<{ taskId: string; dayOfWeek: string } | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [newTaskName, setNewTaskName] = useState('')
   const [addingTask, setAddingTask] = useState(false)
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
+  // Leer sección guardada en localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('limpieza-section') as 'BARRA' | 'COCINA' | null
+    if (saved === 'BARRA' || saved === 'COCINA') setActiveSection(saved)
+    setSectionLoaded(true)
+  }, [])
+
+  // Cargar usuarios de la sección activa
+  useEffect(() => {
+    if (!sectionLoaded) return
+    fetch(`/api/limpieza/users?section=${activeSection}`)
+      .then(r => r.json())
+      .then(data => setSectionUsers(Array.isArray(data) ? data : []))
+      .catch(() => setSectionUsers([]))
+  }, [activeSection, sectionLoaded])
+
   const fetchData = useCallback(async (silent = false) => {
+    if (!sectionLoaded) return
     if (!silent) setLoading(true)
     const weekKey = getWeekKey(currentWeek)
     try {
@@ -55,7 +80,7 @@ export default function LimpiezaClient({ isStaff }: Props) {
     } finally {
       if (!silent) setLoading(false)
     }
-  }, [currentWeek, activeSection])
+  }, [currentWeek, activeSection, sectionLoaded])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -68,17 +93,31 @@ export default function LimpiezaClient({ isStaff }: Props) {
     return completions.find(c => c.taskId === taskId && c.dayOfWeek === dayOfWeek) ?? null
   }
 
-  async function handleToggle(taskId: string, dayOfWeek: string) {
+  function handleCellClick(taskId: string, dayOfWeek: string) {
+    const completion = getCompletion(taskId, dayOfWeek)
+    if (completion) {
+      // Ya marcada → desmarcar directamente
+      handleToggle(taskId, dayOfWeek, null)
+    } else {
+      // Vacía → abrir dropdown de usuarios
+      setDropdownCell({ taskId, dayOfWeek })
+    }
+  }
+
+  async function handleToggle(taskId: string, dayOfWeek: string, userId: string | null) {
     const key = `${taskId}-${dayOfWeek}`
     if (toggling === key) return
     setToggling(key)
 
     const weekKey = getWeekKey(currentWeek)
     try {
+      const body: Record<string, string> = { taskId, weekKey, dayOfWeek }
+      if (userId) body.userId = userId
+
       const res = await fetch('/api/limpieza/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId, weekKey, dayOfWeek }),
+        body: JSON.stringify(body),
       })
       if (res.ok) {
         const { action, completion } = await res.json()
@@ -95,6 +134,20 @@ export default function LimpiezaClient({ isStaff }: Props) {
     } finally {
       setToggling(null)
     }
+  }
+
+  function handleUserSelect(userId: string) {
+    if (!dropdownCell) return
+    handleToggle(dropdownCell.taskId, dropdownCell.dayOfWeek, userId)
+    setDropdownCell(null)
+  }
+
+  function handleSectionChange(section: 'BARRA' | 'COCINA') {
+    setActiveSection(section)
+    localStorage.setItem('limpieza-section', section)
+    setConfirmDelete(null)
+    setShowAddForm(false)
+    setDropdownCell(null)
   }
 
   async function handleAddTask() {
@@ -194,7 +247,7 @@ export default function LimpiezaClient({ isStaff }: Props) {
         {(['BARRA', 'COCINA'] as const).map(section => (
           <button
             key={section}
-            onClick={() => { setActiveSection(section); setConfirmDelete(null); setShowAddForm(false) }}
+            onClick={() => handleSectionChange(section)}
             className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
               activeSection === section
                 ? 'bg-white shadow text-gray-900'
@@ -261,7 +314,7 @@ export default function LimpiezaClient({ isStaff }: Props) {
                       return (
                         <td
                           key={d.key}
-                          onClick={isToggling ? undefined : () => handleToggle(task.id, d.key)}
+                          onClick={isToggling ? undefined : () => handleCellClick(task.id, d.key)}
                           className={`text-center px-1 py-2 border border-gray-100 min-w-[72px] cursor-pointer transition-colors select-none ${
                             isToggling ? 'opacity-50' : ''
                           } ${completion ? 'bg-green-50 hover:bg-green-100' : 'bg-white hover:bg-gray-50'}`}
@@ -325,6 +378,46 @@ export default function LimpiezaClient({ isStaff }: Props) {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Dropdown: seleccionar quién hizo la tarea */}
+      {dropdownCell && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/25"
+          onClick={() => setDropdownCell(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-5 w-64 max-h-[80vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+              ¿Quién lo hizo?
+            </p>
+            {sectionUsers.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-2">
+                No hay empleados en esta sección
+              </p>
+            ) : (
+              <div className="flex flex-col gap-1">
+                {sectionUsers.map(u => (
+                  <button
+                    key={u.id}
+                    onClick={() => handleUserSelect(u.id)}
+                    className="text-left px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                  >
+                    {u.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => setDropdownCell(null)}
+              className="mt-3 w-full text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Cancelar
+            </button>
+          </div>
         </div>
       )}
     </div>

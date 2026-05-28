@@ -49,7 +49,11 @@ export default function Navbar() {
   const role = session?.user?.role
   const isStaff = ['ADMIN', 'GESTOR'].includes(role || '')
 
-  const links = isStaff
+  const links = role === 'LIMPIEZA'
+    ? [
+        { href: '/dashboard/limpieza', label: 'Limpieza' },
+      ]
+    : isStaff
     ? [
         { href: '/dashboard', label: 'Blosters' },
         { href: '/dashboard/users', label: 'Empleados' },
@@ -59,7 +63,6 @@ export default function Navbar() {
       ]
     : [
         { href: '/dashboard', label: 'Mi Bloster' },
-        { href: '/dashboard/limpieza', label: 'Limpieza' },
         { href: '/dashboard/profile', label: 'Mi perfil' },
       ]
 

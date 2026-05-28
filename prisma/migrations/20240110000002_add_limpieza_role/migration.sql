@@ -1,0 +1,2 @@
+-- Añadir valor LIMPIEZA al enum Role
+ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'LIMPIEZA';

@@ -12,6 +12,7 @@ enum Role {
   ADMIN
   GESTOR
   EMPLEADO
+  LIMPIEZA
 }
 
 enum ShiftType {
