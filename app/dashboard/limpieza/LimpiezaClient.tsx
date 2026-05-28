@@ -60,6 +60,7 @@ export default function LimpiezaClient({ isStaff }: Props) {
   const [addingTask, setAddingTask] = useState(false)
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [copying, setCopying] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('limpieza-section') as 'BARRA' | 'COCINA' | null
@@ -181,6 +182,36 @@ export default function LimpiezaClient({ isStaff }: Props) {
     const sorted = [...tasks].sort((a, b) => a.name.localeCompare(b, 'es', { sensitivity: 'base' }))
     setTasks(sorted)
     saveOrder(sorted)
+  }
+
+  async function handleCopyFromPrevWeek() {
+    const prevWeek = new Date(currentWeek)
+    prevWeek.setDate(prevWeek.getDate() - 7)
+    const fromWeekKey = getWeekKey(prevWeek)
+    const toWeekKey = getWeekKey(currentWeek)
+    setCopying(true)
+    try {
+      const res = await fetch('/api/limpieza/urgent/copy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fromWeekKey, toWeekKey, section: activeSection }),
+      })
+      if (res.ok) {
+        const { copied, urgents: newUrgents } = await res.json()
+        if (copied === 0) {
+          toast('La semana anterior no tiene urgentes', { icon: 'ℹ️' })
+        } else {
+          setUrgents(Array.isArray(newUrgents) ? newUrgents : [])
+          toast.success(`${copied} urgente${copied !== 1 ? 's' : ''} copiado${copied !== 1 ? 's' : ''}`)
+        }
+      } else {
+        toast.error('Error al copiar')
+      }
+    } catch {
+      toast.error('Error al copiar')
+    } finally {
+      setCopying(false)
+    }
   }
 
   function handleCellClick(taskId: string, dayOfWeek: string) {
@@ -360,6 +391,16 @@ export default function LimpiezaClient({ isStaff }: Props) {
             className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 text-xs font-semibold hover:bg-blue-100 transition-colors"
           >
             Actual
+          </button>
+        )}
+        {isStaff && (
+          <button
+            onClick={handleCopyFromPrevWeek}
+            disabled={copying}
+            className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-semibold transition-colors disabled:opacity-50"
+            title="Copiar urgentes de la semana anterior a esta semana"
+          >
+            {copying ? '...' : 'Copiar sem. ant.'}
           </button>
         )}
       </div>
