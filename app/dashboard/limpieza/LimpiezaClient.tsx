@@ -60,6 +60,7 @@ export default function LimpiezaClient({ isStaff }: Props) {
   const [addingTask, setAddingTask] = useState(false)
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [copying, setCopying] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('limpieza-section') as 'BARRA' | 'COCINA' | null
@@ -127,8 +128,8 @@ export default function LimpiezaClient({ isStaff }: Props) {
     return DAYS.some(d => DAY_OFFSETS[d.key] > offset && !!getCompletion(taskId, d.key))
   }
 
-  // 'overdue'  → urgente original, día pasado, sin completion en ese ni en días posteriores → rojo pulsante
-  // 'urgent'   → urgente directo (no vencido) o heredado de un overdue anterior sin resolver → ámbar
+  // 'overdue'  → urgente original, día pasado, sin completion posterior → rojo pulsante
+  // 'urgent'   → urgente directo o heredado de overdue anterior sin resolver → ámbar
   // null       → sin urgencia
   function getCellUrgency(taskId: string, dayKey: string): 'overdue' | 'urgent' | null {
     if (getUrgent(taskId, dayKey)) {
@@ -148,6 +149,65 @@ export default function LimpiezaClient({ isStaff }: Props) {
       })
     })
     return inherited ? 'urgent' : null
+  }
+
+  async function saveOrder(newTasks: LimpiezaTask[]) {
+    try {
+      await fetch('/api/limpieza/tasks/reorder', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tasks: newTasks.map((t, i) => ({ id: t.id, order: i })) }),
+      })
+    } catch {
+      toast.error('Error al guardar el orden')
+    }
+  }
+
+  function moveTask(taskId: string, direction: 'up' | 'down') {
+    const idx = tasks.findIndex(t => t.id === taskId)
+    if (direction === 'up' && idx === 0) return
+    if (direction === 'down' && idx === tasks.length - 1) return
+    const newTasks = [...tasks]
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    ;[newTasks[idx], newTasks[swapIdx]] = [newTasks[swapIdx], newTasks[idx]]
+    setTasks(newTasks)
+    saveOrder(newTasks)
+  }
+
+  function sortAlphabetically() {
+    const sorted = [...tasks].sort((a, b) => a.name.localeCompare(b, 'es', { sensitivity: 'base' }))
+    setTasks(sorted)
+    saveOrder(sorted)
+  }
+
+  async function handleCopyFromPrevWeek() {
+    const prevWeek = new Date(currentWeek)
+    prevWeek.setDate(prevWeek.getDate() - 7)
+    const fromWeekKey = getWeekKey(prevWeek)
+    const toWeekKey = getWeekKey(currentWeek)
+    setCopying(true)
+    try {
+      const res = await fetch('/api/limpieza/urgent/copy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fromWeekKey, toWeekKey, section: activeSection }),
+      })
+      if (res.ok) {
+        const { copied, urgents: newUrgents } = await res.json()
+        if (copied === 0) {
+          toast('La semana anterior no tiene urgentes', { icon: 'ℹ️' })
+        } else {
+          setUrgents(Array.isArray(newUrgents) ? newUrgents : [])
+          toast.success(`${copied} urgente${copied !== 1 ? 's' : ''} copiado${copied !== 1 ? 's' : ''}`)
+        }
+      } else {
+        toast.error('Error al copiar')
+      }
+    } catch {
+      toast.error('Error al copiar')
+    } finally {
+      setCopying(false)
+    }
   }
 
   function handleCellClick(taskId: string, dayOfWeek: string) {
@@ -329,6 +389,16 @@ export default function LimpiezaClient({ isStaff }: Props) {
             Actual
           </button>
         )}
+        {isStaff && (
+          <button
+            onClick={handleCopyFromPrevWeek}
+            disabled={copying}
+            className="px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-semibold transition-colors disabled:opacity-50"
+            title="Copiar urgentes de la semana anterior a esta semana"
+          >
+            {copying ? '...' : 'Copiar sem. ant.'}
+          </button>
+        )}
       </div>
 
       {/* Tabs Barra / Cocina */}
@@ -384,20 +454,36 @@ export default function LimpiezaClient({ isStaff }: Props) {
                 tasks.map(task => (
                   <tr key={task.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
                     <td className="sticky left-0 bg-white px-3 py-2 border-r border-gray-100">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1">
                         {isStaff && (
-                          <button
-                            onClick={() => handleDeleteTask(task.id)}
-                            disabled={deletingTaskId === task.id}
-                            className={`flex-shrink-0 text-xs px-1.5 py-0.5 rounded font-semibold transition-colors disabled:opacity-40 ${
-                              confirmDelete === task.id
-                                ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                                : 'text-gray-300 hover:text-red-400 hover:bg-red-50'
-                            }`}
-                            title={confirmDelete === task.id ? 'Confirmar eliminación' : 'Eliminar tarea'}
-                          >
-                            {deletingTaskId === task.id ? '...' : confirmDelete === task.id ? '¿Seguro?' : '✕'}
-                          </button>
+                          <>
+                            <div className="flex flex-col flex-shrink-0">
+                              <button
+                                onClick={() => moveTask(task.id, 'up')}
+                                disabled={tasks.indexOf(task) === 0}
+                                className="text-gray-300 hover:text-blue-500 disabled:opacity-20 disabled:cursor-not-allowed leading-none text-[10px] px-0.5"
+                                title="Subir"
+                              >▲</button>
+                              <button
+                                onClick={() => moveTask(task.id, 'down')}
+                                disabled={tasks.indexOf(task) === tasks.length - 1}
+                                className="text-gray-300 hover:text-blue-500 disabled:opacity-20 disabled:cursor-not-allowed leading-none text-[10px] px-0.5"
+                                title="Bajar"
+                              >▼</button>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteTask(task.id)}
+                              disabled={deletingTaskId === task.id}
+                              className={`flex-shrink-0 text-xs px-1.5 py-0.5 rounded font-semibold transition-colors disabled:opacity-40 ${
+                                confirmDelete === task.id
+                                  ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                                  : 'text-gray-300 hover:text-red-400 hover:bg-red-50'
+                              }`}
+                              title={confirmDelete === task.id ? 'Confirmar eliminación' : 'Eliminar tarea'}
+                            >
+                              {deletingTaskId === task.id ? '...' : confirmDelete === task.id ? '¿Seguro?' : '✕'}
+                            </button>
+                          </>
                         )}
                         <span className="text-gray-800 font-medium text-sm leading-tight">{task.name}</span>
                       </div>
@@ -462,12 +548,23 @@ export default function LimpiezaClient({ isStaff }: Props) {
       {isStaff && (
         <div className="space-y-2">
           {!showAddForm ? (
-            <button
-              onClick={() => { setShowAddForm(true); setConfirmDelete(null) }}
-              className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm font-semibold transition-colors"
-            >
-              <span className="text-base leading-none">+</span> Añadir tarea
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => { setShowAddForm(true); setConfirmDelete(null) }}
+                className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm font-semibold transition-colors"
+              >
+                <span className="text-base leading-none">+</span> Añadir tarea
+              </button>
+              {tasks.length > 1 && (
+                <button
+                  onClick={sortAlphabetically}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm font-semibold transition-colors"
+                  title="Ordenar alfabéticamente"
+                >
+                  A-Z
+                </button>
+              )}
+            </div>
           ) : (
             <div className="flex items-center gap-2 flex-wrap">
               <input
