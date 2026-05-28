@@ -49,7 +49,11 @@ export default function Navbar() {
   const role = session?.user?.role
   const isStaff = ['ADMIN', 'GESTOR'].includes(role || '')
 
-  const links = isStaff
+  const links = role === 'LIMPIEZA'
+    ? [
+        { href: '/dashboard/limpieza', label: 'Limpieza' },
+      ]
+    : isStaff
     ? [
         { href: '/dashboard', label: 'Blosters' },
         { href: '/dashboard/users', label: 'Empleados' },
@@ -59,7 +63,6 @@ export default function Navbar() {
       ]
     : [
         { href: '/dashboard', label: 'Mi Bloster' },
-        { href: '/dashboard/limpieza', label: 'Limpieza' },
         { href: '/dashboard/profile', label: 'Mi perfil' },
       ]
 
@@ -79,7 +82,7 @@ export default function Navbar() {
             {isStaff && <QRModal />}
             <InstallPrompt />
             <span className="text-sm text-gray-600 font-medium">{session?.user?.name}</span>
-            {role !== 'EMPLEADO' && (
+            {role !== 'EMPLEADO' && role !== 'LIMPIEZA' && (
               <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full hidden sm:inline">{role}</span>
             )}
             <button

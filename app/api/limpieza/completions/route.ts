@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { taskId, weekKey, dayOfWeek } = await req.json()
+  const { taskId, weekKey, dayOfWeek, userId: bodyUserId } = await req.json()
   if (!taskId || !weekKey || !dayOfWeek) {
     return NextResponse.json({ error: 'Invalid data' }, { status: 400 })
   }
@@ -52,9 +52,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ action: 'unmarked', completion: null })
   }
 
+  const completionUserId = bodyUserId || session.user.id
+  if (!completionUserId) {
+    return NextResponse.json({ error: 'userId required' }, { status: 400 })
+  }
+
   try {
     const completion = await prisma.limpiezaCompletion.create({
-      data: { taskId, weekStart, dayOfWeek, userId: session.user.id },
+      data: { taskId, weekStart, dayOfWeek, userId: completionUserId },
       include: { user: { select: { id: true, name: true } } },
     })
     return NextResponse.json({ action: 'marked', completion })

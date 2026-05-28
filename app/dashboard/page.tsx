@@ -1,6 +1,7 @@
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { redirect } from 'next/navigation'
 import WeekGrid from '@/components/schedule/WeekGrid'
 import EmployeeScheduleView from '@/components/schedule/EmployeeScheduleView'
 
@@ -8,7 +9,11 @@ export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
-  const isEmployee = session?.user?.role === 'EMPLEADO'
+  const role = session?.user?.role
+
+  if (role === 'LIMPIEZA') redirect('/dashboard/limpieza')
+
+  const isEmployee = role === 'EMPLEADO'
 
   if (isEmployee) {
     return <EmployeeScheduleView userId={session!.user.id} />
