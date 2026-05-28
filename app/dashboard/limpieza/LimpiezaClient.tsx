@@ -128,9 +128,6 @@ export default function LimpiezaClient({ isStaff }: Props) {
     return DAYS.some(d => DAY_OFFSETS[d.key] > offset && !!getCompletion(taskId, d.key))
   }
 
-  // 'overdue'  → urgente original, día pasado, sin completion posterior → rojo pulsante
-  // 'urgent'   → urgente directo o heredado de overdue anterior sin resolver → ámbar
-  // null       → sin urgencia
   function getCellUrgency(taskId: string, dayKey: string): 'overdue' | 'urgent' | null {
     if (getUrgent(taskId, dayKey)) {
       if (isDayPast(dayKey) && !hasCompletionAfter(taskId, dayKey)) return 'overdue'
@@ -175,7 +172,7 @@ export default function LimpiezaClient({ isStaff }: Props) {
   }
 
   function sortAlphabetically() {
-    const sorted = [...tasks].sort((a, b) => a.name.localeCompare(b, 'es', { sensitivity: 'base' }))
+    const sorted = [...tasks].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }))
     setTasks(sorted)
     saveOrder(sorted)
   }
@@ -364,7 +361,6 @@ export default function LimpiezaClient({ isStaff }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Navegación semanal */}
       <div className="flex items-center gap-2 flex-wrap">
         <button
           onClick={goToPrevWeek}
@@ -401,7 +397,6 @@ export default function LimpiezaClient({ isStaff }: Props) {
         )}
       </div>
 
-      {/* Tabs Barra / Cocina */}
       <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
         {(['BARRA', 'COCINA'] as const).map(section => (
           <button
@@ -424,7 +419,6 @@ export default function LimpiezaClient({ isStaff }: Props) {
         </p>
       )}
 
-      {/* Grid */}
       {loading ? (
         <div className="text-sm text-gray-400 py-8 text-center">Cargando...</div>
       ) : (
@@ -544,7 +538,6 @@ export default function LimpiezaClient({ isStaff }: Props) {
         </div>
       )}
 
-      {/* Añadir tarea (solo staff) */}
       {isStaff && (
         <div className="space-y-2">
           {!showAddForm ? (
@@ -594,7 +587,6 @@ export default function LimpiezaClient({ isStaff }: Props) {
         </div>
       )}
 
-      {/* Dropdown: seleccionar quién hizo la tarea */}
       {dropdownCell && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/25"
