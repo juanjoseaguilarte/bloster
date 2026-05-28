@@ -108,6 +108,20 @@ export default function LimpiezaClient({ isStaff }: Props) {
     return urgents.find(u => u.taskId === taskId && u.dayOfWeek === dayOfWeek) ?? null
   }
 
+  const DAY_OFFSETS: Record<string, number> = {
+    MONDAY: 0, TUESDAY: 1, WEDNESDAY: 2, THURSDAY: 3,
+    FRIDAY: 4, SATURDAY: 5, SUNDAY: 6,
+  }
+
+  function isDayPast(dayKey: string): boolean {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const dayDate = new Date(currentWeek)
+    dayDate.setDate(dayDate.getDate() + (DAY_OFFSETS[dayKey] ?? 0))
+    dayDate.setHours(0, 0, 0, 0)
+    return dayDate < today
+  }
+
   function handleCellClick(taskId: string, dayOfWeek: string) {
     if (isStaff) {
       handleToggleUrgent(taskId, dayOfWeek)
@@ -365,10 +379,13 @@ export default function LimpiezaClient({ isStaff }: Props) {
                       const urgent = getUrgent(task.id, d.key)
                       const toggleKey = `${task.id}-${d.key}`
                       const isTogglingCell = toggling === toggleKey || urgentToggling === toggleKey
+                      const overdue = !!urgent && !completion && isDayPast(d.key)
 
                       let cellBg = 'bg-white hover:bg-gray-50'
                       if (completion) {
                         cellBg = 'bg-green-50 hover:bg-green-100'
+                      } else if (overdue) {
+                        cellBg = 'bg-red-100 hover:bg-red-200 animate-pulse'
                       } else if (urgent) {
                         cellBg = 'bg-amber-50 hover:bg-amber-100'
                       }
@@ -389,6 +406,11 @@ export default function LimpiezaClient({ isStaff }: Props) {
                               <span className="text-xs text-green-700 font-medium leading-tight max-w-[60px] truncate">
                                 {completion.user.name.split(' ')[0]}
                               </span>
+                            </div>
+                          ) : overdue ? (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className="text-red-600 text-base font-bold leading-none">!</span>
+                              <span className="text-xs text-red-600 font-semibold leading-tight">Urgente</span>
                             </div>
                           ) : urgent ? (
                             <div className="flex flex-col items-center gap-0.5">
