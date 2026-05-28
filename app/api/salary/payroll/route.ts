@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
   const [users, exclusions] = await Promise.all([
     prisma.user.findMany({
       where: {
+        role: { not: 'LIMPIEZA' },
         OR: [
           { active: true },
           { payrolls: { some: {} } },
