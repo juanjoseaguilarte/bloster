@@ -236,8 +236,8 @@ function PayrollRow({
             <EditableCell value={vals.base} isActive={active === 'base'} editable={editable}
               onActivate={() => setActive('base')} onChange={n => update('base', n)} onBlur={handleBlur} />
           ) : isSuggested ? (
-            <span className="text-gray-400 italic whitespace-nowrap">{fmt(user.suggested!)} €</span>
-          ) : <span className="text-gray-300">—</span>}
+            <span onClick={() => onOpenModal(user)} className="text-gray-400 italic whitespace-nowrap cursor-pointer hover:text-blue-500 transition-colors">{fmt(user.suggested!)} €</span>
+          ) : <span onClick={() => onOpenModal(user)} className="text-gray-300 cursor-pointer hover:text-blue-400 transition-colors">—</span>}
         </td>
         {/* Adelantos */}
         <td className="text-right px-3 py-3">
@@ -245,7 +245,7 @@ function PayrollRow({
             <EditableCell value={vals.advances} isActive={active === 'advances'} editable={editable}
               colorClass={vals.advances > 0 ? 'text-orange-600 font-medium' : 'text-gray-400'}
               onActivate={() => setActive('advances')} onChange={n => update('advances', n)} onBlur={handleBlur} />
-          ) : <span className="text-gray-300">—</span>}
+          ) : <span onClick={() => onOpenModal(user)} className="text-gray-300 cursor-pointer hover:text-blue-400 transition-colors">—</span>}
         </td>
         {/* Embargos */}
         <td className="text-right px-3 py-3">
@@ -253,7 +253,7 @@ function PayrollRow({
             <EditableCell value={vals.garnishments} isActive={active === 'garnishments'} editable={editable}
               colorClass={vals.garnishments > 0 ? 'text-red-500 font-medium' : 'text-gray-400'}
               onActivate={() => setActive('garnishments')} onChange={n => update('garnishments', n)} onBlur={handleBlur} />
-          ) : <span className="text-gray-300">—</span>}
+          ) : <span onClick={() => onOpenModal(user)} className="text-gray-300 cursor-pointer hover:text-blue-400 transition-colors">—</span>}
         </td>
         {/* Neto */}
         <td className="text-right px-3 py-3 whitespace-nowrap">
