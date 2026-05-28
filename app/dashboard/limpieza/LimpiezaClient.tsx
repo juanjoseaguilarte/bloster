@@ -3,6 +3,11 @@ import { useState, useEffect, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import { getWeekStart, getWeekKey, formatWeekLabel, parseWeekKey, DAYS } from '@/lib/utils'
 
+const DAY_OFFSETS: Record<string, number> = {
+  MONDAY: 0, TUESDAY: 1, WEDNESDAY: 2, THURSDAY: 3,
+  FRIDAY: 4, SATURDAY: 5, SUNDAY: 6,
+}
+
 interface LimpiezaTask {
   id: string
   name: string
@@ -108,11 +113,6 @@ export default function LimpiezaClient({ isStaff }: Props) {
     return urgents.find(u => u.taskId === taskId && u.dayOfWeek === dayOfWeek) ?? null
   }
 
-  const DAY_OFFSETS: Record<string, number> = {
-    MONDAY: 0, TUESDAY: 1, WEDNESDAY: 2, THURSDAY: 3,
-    FRIDAY: 4, SATURDAY: 5, SUNDAY: 6,
-  }
-
   function isDayPast(dayKey: string): boolean {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -120,6 +120,38 @@ export default function LimpiezaClient({ isStaff }: Props) {
     dayDate.setDate(dayDate.getDate() + (DAY_OFFSETS[dayKey] ?? 0))
     dayDate.setHours(0, 0, 0, 0)
     return dayDate < today
+  }
+
+  // ¿Hay alguna completion en un día posterior a dayKey?
+  function hasCompletionAfter(taskId: string, dayKey: string): boolean {
+    const offset = DAY_OFFSETS[dayKey]
+    return DAYS.some(d => DAY_OFFSETS[d.key] > offset && !!getCompletion(taskId, d.key))
+  }
+
+  // Calcula el estado de urgencia de la celda:
+  // 'overdue'  → urgente original, día pasado, sin completion en ese ni en días posteriores → rojo pulsante
+  // 'urgent'   → urgente directo (no vencido) o heredado de un overdue anterior sin resolver → ámbar
+  // null       → sin urgencia
+  function getCellUrgency(taskId: string, dayKey: string): 'overdue' | 'urgent' | null {
+    if (getUrgent(taskId, dayKey)) {
+      if (isDayPast(dayKey) && !hasCompletionAfter(taskId, dayKey)) return 'overdue'
+      return 'urgent'
+    }
+    // ¿Heredado de un día anterior con overdue sin resolver?
+    const dayOffset = DAY_OFFSETS[dayKey]
+    const inherited = DAYS.some(prev => {
+      const prevOffset = DAY_OFFSETS[prev.key]
+      if (prevOffset >= dayOffset) return false
+      if (!getUrgent(taskId, prev.key)) return false
+      if (!isDayPast(prev.key)) return false
+      if (getCompletion(taskId, prev.key)) return false
+      // Sin completion entre el día urgente y este día
+      return !DAYS.some(mid => {
+        const midOffset = DAY_OFFSETS[mid.key]
+        return midOffset > prevOffset && midOffset < dayOffset && !!getCompletion(taskId, mid.key)
+      })
+    })
+    return inherited ? 'urgent' : null
   }
 
   function handleCellClick(taskId: string, dayOfWeek: string) {
@@ -376,17 +408,16 @@ export default function LimpiezaClient({ isStaff }: Props) {
                     </td>
                     {DAYS.map(d => {
                       const completion = getCompletion(task.id, d.key)
-                      const urgent = getUrgent(task.id, d.key)
+                      const urgency = completion ? null : getCellUrgency(task.id, d.key)
                       const toggleKey = `${task.id}-${d.key}`
                       const isTogglingCell = toggling === toggleKey || urgentToggling === toggleKey
-                      const overdue = !!urgent && !completion && isDayPast(d.key)
 
                       let cellBg = 'bg-white hover:bg-gray-50'
                       if (completion) {
                         cellBg = 'bg-green-50 hover:bg-green-100'
-                      } else if (overdue) {
+                      } else if (urgency === 'overdue') {
                         cellBg = 'bg-red-100 hover:bg-red-200 animate-pulse'
-                      } else if (urgent) {
+                      } else if (urgency === 'urgent') {
                         cellBg = 'bg-amber-50 hover:bg-amber-100'
                       }
 
@@ -407,12 +438,12 @@ export default function LimpiezaClient({ isStaff }: Props) {
                                 {completion.user.name.split(' ')[0]}
                               </span>
                             </div>
-                          ) : overdue ? (
+                          ) : urgency === 'overdue' ? (
                             <div className="flex flex-col items-center gap-0.5">
                               <span className="text-red-600 text-base font-bold leading-none">!</span>
                               <span className="text-xs text-red-600 font-semibold leading-tight">Urgente</span>
                             </div>
-                          ) : urgent ? (
+                          ) : urgency === 'urgent' ? (
                             <div className="flex flex-col items-center gap-0.5">
                               <span className="text-amber-500 text-base font-bold leading-none">!</span>
                               <span className="text-xs text-amber-600 font-semibold leading-tight">Urgente</span>
