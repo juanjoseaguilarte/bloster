@@ -147,7 +147,7 @@ export default function LimpiezaClient({ isStaff }: Props) {
   // 'overdue'  → urgente original, día pasado, sin completion en ese ni en días posteriores → rojo pulsante
   // 'urgent'   → urgente directo (no vencido) o heredado de un overdue anterior sin resolver → ámbar
   // null       → sin urgencia
-  function getCellUrgency(taskId: string, dayKey: string): 'overdue' | 'urgent' | null {
+  function getCellUrgency(taskId: string, dayKey: string): 'overdue' | 'urgent' | 'inherited' | null {
     if (getUrgent(taskId, dayKey)) {
       if (isDayPast(dayKey) && !hasCompletionAfter(taskId, dayKey)) return 'overdue'
       return 'urgent'
@@ -166,7 +166,7 @@ export default function LimpiezaClient({ isStaff }: Props) {
         return midOffset > prevOffset && midOffset < dayOffset && !!getCompletion(taskId, mid.key)
       })
     })
-    return inherited ? 'urgent' : null
+    return inherited ? 'inherited' : null
   }
 
   async function saveOrder(newTasks: LimpiezaTask[]) {
@@ -534,7 +534,7 @@ export default function LimpiezaClient({ isStaff }: Props) {
                         cellBg = 'bg-green-50 hover:bg-green-100'
                       } else if (urgency === 'overdue') {
                         cellBg = 'bg-red-100 hover:bg-red-200 animate-pulse'
-                      } else if (urgency === 'urgent') {
+                      } else if (urgency === 'urgent' || urgency === 'inherited') {
                         cellBg = 'bg-amber-50 hover:bg-amber-100'
                       }
 
@@ -558,12 +558,17 @@ export default function LimpiezaClient({ isStaff }: Props) {
                           ) : urgency === 'overdue' ? (
                             <div className="flex flex-col items-center gap-0.5">
                               <span className="text-red-600 text-base font-bold leading-none">!</span>
-                              <span className="text-xs text-red-600 font-semibold leading-tight">Urgente</span>
+                              <span className="text-xs text-red-600 font-semibold leading-tight">No se hizo</span>
                             </div>
                           ) : urgency === 'urgent' ? (
                             <div className="flex flex-col items-center gap-0.5">
                               <span className="text-amber-500 text-base font-bold leading-none">!</span>
-                              <span className="text-xs text-amber-600 font-semibold leading-tight">Urgente</span>
+                              <span className="text-xs text-amber-600 font-semibold leading-tight">Hacerlo hoy</span>
+                            </div>
+                          ) : urgency === 'inherited' ? (
+                            <div className="flex flex-col items-center gap-0.5">
+                              <span className="text-amber-500 text-base font-bold leading-none">!</span>
+                              <span className="text-xs text-amber-600 font-semibold leading-tight">Pendiente</span>
                             </div>
                           ) : (
                             <span className="text-gray-200 text-lg leading-none">+</span>
