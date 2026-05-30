@@ -37,6 +37,17 @@ interface SectionUser {
   name: string
 }
 
+interface RankingEntry {
+  userId: string
+  userName: string
+  count: number
+}
+
+interface Ranking {
+  barra: RankingEntry[]
+  cocina: RankingEntry[]
+}
+
 interface Props {
   isStaff: boolean
   userId: string
@@ -61,6 +72,9 @@ export default function LimpiezaClient({ isStaff }: Props) {
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [copying, setCopying] = useState(false)
+  const [showRanking, setShowRanking] = useState(false)
+  const [ranking, setRanking] = useState<Ranking>({ barra: [], cocina: [] })
+  const [loadingRanking, setLoadingRanking] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('limpieza-section') as 'BARRA' | 'COCINA' | null
@@ -351,6 +365,23 @@ export default function LimpiezaClient({ isStaff }: Props) {
     }
   }
 
+  async function fetchRanking() {
+    setLoadingRanking(true)
+    try {
+      const res = await fetch('/api/limpieza/ranking')
+      if (res.ok) setRanking(await res.json())
+    } catch {
+      toast.error('Error al cargar el ranking')
+    } finally {
+      setLoadingRanking(false)
+    }
+  }
+
+  function toggleRanking() {
+    if (!showRanking) fetchRanking()
+    setShowRanking(v => !v)
+  }
+
   function goToPrevWeek() {
     setCurrentWeek(w => { const d = new Date(w); d.setDate(d.getDate() - 7); return d })
     setConfirmDelete(null)
@@ -597,6 +628,52 @@ export default function LimpiezaClient({ isStaff }: Props) {
           )}
         </div>
       )}
+
+      {/* Ranking */}
+      <div>
+        <button
+          onClick={toggleRanking}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg text-sm font-semibold transition-colors"
+        >
+          <span>🏆</span>
+          {showRanking ? 'Ocultar ranking' : 'Ver ranking'}
+        </button>
+
+        {showRanking && (
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {(['barra', 'cocina'] as const).map(sec => (
+              <div key={sec} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-3">
+                  {sec === 'barra' ? 'Barra' : 'Cocina'}
+                </h3>
+                {loadingRanking ? (
+                  <p className="text-sm text-gray-400">Cargando...</p>
+                ) : ranking[sec].length === 0 ? (
+                  <p className="text-sm text-gray-400">Sin datos todavía</p>
+                ) : (
+                  <ol className="space-y-1.5">
+                    {ranking[sec].map((entry, i) => (
+                      <li key={entry.userId} className="flex items-center gap-2">
+                        <span className="w-6 text-center text-base leading-none flex-shrink-0">
+                          {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (
+                            <span className="text-xs text-gray-400 font-semibold">{i + 1}</span>
+                          )}
+                        </span>
+                        <span className="flex-1 text-sm text-gray-800 font-medium truncate">
+                          {entry.userName.split(' ')[0]}
+                        </span>
+                        <span className="text-sm font-bold text-blue-600 flex-shrink-0">
+                          {entry.count} {entry.count === 1 ? 'tarea' : 'tareas'}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Dropdown: seleccionar quién hizo la tarea */}
       {dropdownCell && (
