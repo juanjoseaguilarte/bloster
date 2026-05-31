@@ -365,22 +365,35 @@ export default function LimpiezaClient({ isStaff }: Props) {
     }
   }
 
-  async function fetchRanking() {
+  const fetchRanking = useCallback(async () => {
     setLoadingRanking(true)
     try {
-      const res = await fetch('/api/limpieza/ranking')
+      const res = await fetch(`/api/limpieza/ranking?weekKey=${getWeekKey(currentWeek)}`)
       if (res.ok) setRanking(await res.json())
     } catch {
       toast.error('Error al cargar el ranking')
     } finally {
       setLoadingRanking(false)
     }
-  }
+  }, [currentWeek])
+
+  useEffect(() => {
+    if (showRanking) fetchRanking()
+  }, [showRanking, fetchRanking])
 
   function toggleRanking() {
-    if (!showRanking) fetchRanking()
     setShowRanking(v => !v)
   }
+
+  const topPerformer = (() => {
+    if (completions.length === 0) return null
+    const counts: Record<string, { name: string; count: number }> = {}
+    for (const c of completions) {
+      if (!counts[c.userId]) counts[c.userId] = { name: c.user.name, count: 0 }
+      counts[c.userId].count++
+    }
+    return Object.values(counts).sort((a, b) => b.count - a.count)[0] ?? null
+  })()
 
   function goToPrevWeek() {
     setCurrentWeek(w => { const d = new Date(w); d.setDate(d.getDate() - 7); return d })
@@ -452,6 +465,17 @@ export default function LimpiezaClient({ isStaff }: Props) {
           </button>
         ))}
       </div>
+
+      {!loading && topPerformer && (
+        <div className="flex items-center gap-2 text-sm bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+          <span className="text-base">🌟</span>
+          <span className="text-yellow-800">
+            El compañero que más tareas ha realizado esta semana es{' '}
+            <strong>{topPerformer.name.split(' ')[0]}</strong> con{' '}
+            <strong>{topPerformer.count}</strong> {topPerformer.count === 1 ? 'tarea' : 'tareas'}
+          </span>
+        </div>
+      )}
 
       {isStaff && (
         <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
