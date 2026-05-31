@@ -137,23 +137,16 @@ export default function LimpiezaClient({ isStaff }: Props) {
     return dayDate < today
   }
 
-  // ¿Hay alguna completion en un día posterior a dayKey?
   function hasCompletionAfter(taskId: string, dayKey: string): boolean {
     const offset = DAY_OFFSETS[dayKey]
     return DAYS.some(d => DAY_OFFSETS[d.key] > offset && !!getCompletion(taskId, d.key))
   }
 
-  // Calcula el estado de urgencia de la celda:
-  // 'urgent'    → urgente directo, día presente o futuro → "Hacerlo hoy" (ámbar)
-  // 'overdue'   → urgente original, día pasado sin completion → "No se hizo" (rojo pulsante)
-  // 'inherited' → propagado de un overdue anterior sin resolver → "Pendiente" (ámbar)
-  // null        → sin urgencia
   function getCellUrgency(taskId: string, dayKey: string): 'overdue' | 'urgent' | 'inherited' | null {
     if (getUrgent(taskId, dayKey)) {
       if (isDayPast(dayKey) && !hasCompletionAfter(taskId, dayKey)) return 'overdue'
       return 'urgent'
     }
-    // ¿Heredado de un día anterior con overdue sin resolver?
     const dayOffset = DAY_OFFSETS[dayKey]
     const inherited = DAYS.some(prev => {
       const prevOffset = DAY_OFFSETS[prev.key]
@@ -161,7 +154,6 @@ export default function LimpiezaClient({ isStaff }: Props) {
       if (!getUrgent(taskId, prev.key)) return false
       if (!isDayPast(prev.key)) return false
       if (getCompletion(taskId, prev.key)) return false
-      // Sin completion entre el día urgente y este día
       return !DAYS.some(mid => {
         const midOffset = DAY_OFFSETS[mid.key]
         return midOffset > prevOffset && midOffset < dayOffset && !!getCompletion(taskId, mid.key)
@@ -246,7 +238,6 @@ export default function LimpiezaClient({ isStaff }: Props) {
     const key = `${taskId}-${dayOfWeek}`
     if (urgentToggling === key) return
     setUrgentToggling(key)
-
     const weekKey = getWeekKey(currentWeek)
     try {
       const res = await fetch('/api/limpieza/urgent', {
@@ -275,12 +266,10 @@ export default function LimpiezaClient({ isStaff }: Props) {
     const key = `${taskId}-${dayOfWeek}`
     if (toggling === key) return
     setToggling(key)
-
     const weekKey = getWeekKey(currentWeek)
     try {
       const body: Record<string, string> = { taskId, weekKey, dayOfWeek }
       if (userId) body.userId = userId
-
       const res = await fetch('/api/limpieza/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -366,22 +355,35 @@ export default function LimpiezaClient({ isStaff }: Props) {
     }
   }
 
-  async function fetchRanking() {
+  const fetchRanking = useCallback(async () => {
     setLoadingRanking(true)
     try {
-      const res = await fetch('/api/limpieza/ranking')
+      const res = await fetch(`/api/limpieza/ranking?weekKey=${getWeekKey(currentWeek)}`)
       if (res.ok) setRanking(await res.json())
     } catch {
       toast.error('Error al cargar el ranking')
     } finally {
       setLoadingRanking(false)
     }
-  }
+  }, [currentWeek])
+
+  useEffect(() => {
+    if (showRanking) fetchRanking()
+  }, [showRanking, fetchRanking])
 
   function toggleRanking() {
-    if (!showRanking) fetchRanking()
     setShowRanking(v => !v)
   }
+
+  const topPerformer = (() => {
+    if (completions.length === 0) return null
+    const counts: Record<string, { name: string; count: number }> = {}
+    for (const c of completions) {
+      if (!counts[c.userId]) counts[c.userId] = { name: c.user.name, count: 0 }
+      counts[c.userId].count++
+    }
+    return Object.values(counts).sort((a, b) => b.count - a.count)[0] ?? null
+  })()
 
   function goToPrevWeek() {
     setCurrentWeek(w => { const d = new Date(w); d.setDate(d.getDate() - 7); return d })
@@ -453,6 +455,17 @@ export default function LimpiezaClient({ isStaff }: Props) {
           </button>
         ))}
       </div>
+
+      {!loading && topPerformer && (
+        <div className="flex items-center gap-2 text-sm bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2">
+          <span className="text-base">🌟</span>
+          <span className="text-yellow-800">
+            El compañero que más tareas ha realizado esta semana es{' '}
+            <strong>{topPerformer.name.split(' ')[0]}</strong> con{' '}
+            <strong>{topPerformer.count}</strong> {topPerformer.count === 1 ? 'tarea' : 'tareas'}
+          </span>
+        </div>
+      )}
 
       {isStaff && (
         <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
