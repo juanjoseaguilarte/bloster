@@ -400,6 +400,9 @@ export default function LimpiezaClient({ isStaff }: Props) {
 
   const isCurrentWeek = getWeekKey(currentWeek) === getWeekKey(getWeekStart(new Date()))
 
+  const todayKey = (['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'])[new Date().getDay()]
+  const highlightDay = isCurrentWeek ? todayKey : null
+
   return (
     <div className="space-y-4">
       {/* Navegación semanal */}
@@ -485,7 +488,11 @@ export default function LimpiezaClient({ isStaff }: Props) {
                   Tarea
                 </th>
                 {DAYS.map(d => (
-                  <th key={d.key} className="px-2 py-3 text-center font-semibold text-gray-500 min-w-[72px]">
+                  <th key={d.key} className={`px-2 py-3 text-center font-semibold min-w-[72px] ${
+                    d.key === highlightDay
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-500'
+                  }`}>
                     <span className="hidden sm:inline">{d.label}</span>
                     <span className="sm:hidden">{d.label.slice(0, 3)}</span>
                   </th>
@@ -550,6 +557,8 @@ export default function LimpiezaClient({ isStaff }: Props) {
                         cellBg = 'bg-red-100 hover:bg-red-200 animate-pulse'
                       } else if (urgency === 'urgent' || urgency === 'inherited') {
                         cellBg = 'bg-amber-50 hover:bg-amber-100'
+                      } else if (d.key === highlightDay) {
+                        cellBg = 'bg-blue-50 hover:bg-blue-100'
                       }
 
                       return (
