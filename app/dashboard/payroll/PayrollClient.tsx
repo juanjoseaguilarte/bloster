@@ -175,10 +175,11 @@ function EmployeeMenu({
 }
 
 function PayrollRow({
-  user, isAdmin, year, month, onRefresh, onOpenModal, onConfig, onPay, onUnpay, onExclude, paying,
+  user, isAdmin, year, month, onRefresh, onUpdatePayroll, onOpenModal, onConfig, onPay, onUnpay, onExclude, paying,
 }: {
   user: UserRow; isAdmin: boolean; year: number; month: number
-  onRefresh: () => void; onOpenModal: (u: UserRow) => void; onConfig: (u: UserRow) => void
+  onRefresh: () => void; onUpdatePayroll: (userId: string, updated: Payroll) => void
+  onOpenModal: (u: UserRow) => void; onConfig: (u: UserRow) => void
   onPay: (p: Payroll) => void; onUnpay: (p: Payroll) => void; onExclude: (u: UserRow) => void
   paying: string | null
 }) {
@@ -213,7 +214,7 @@ function PayrollRow({
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ baseAmount: v.base, advances: v.advances, garnishments: v.garnishments, transferAmount: v.transfer, cashAmount }),
     })
-    if (res.ok) onRefresh()
+    if (res.ok) onUpdatePayroll(user.id, await res.json())
     else toast.error('Error al guardar')
   }
 
@@ -288,10 +289,11 @@ function PayrollRow({
 }
 
 function GroupSection({
-  title, rows, isAdmin, year, month, onRefresh, onOpenModal, onConfig, onPay, onUnpay, onExclude, paying,
+  title, rows, isAdmin, year, month, onRefresh, onUpdatePayroll, onOpenModal, onConfig, onPay, onUnpay, onExclude, paying,
 }: {
   title: string; rows: UserRow[]; isAdmin: boolean; year: number; month: number
-  onRefresh: () => void; onOpenModal: (u: UserRow) => void; onConfig: (u: UserRow) => void
+  onRefresh: () => void; onUpdatePayroll: (userId: string, updated: Payroll) => void
+  onOpenModal: (u: UserRow) => void; onConfig: (u: UserRow) => void
   onPay: (p: Payroll) => void; onUnpay: (p: Payroll) => void; onExclude: (u: UserRow) => void
   paying: string | null
 }) {
@@ -309,7 +311,7 @@ function GroupSection({
       </tr>
       {rows.map(user => (
         <PayrollRow key={user.id} user={user} isAdmin={isAdmin} year={year} month={month}
-          onRefresh={onRefresh} onOpenModal={onOpenModal} onConfig={onConfig}
+          onRefresh={onRefresh} onUpdatePayroll={onUpdatePayroll} onOpenModal={onOpenModal} onConfig={onConfig}
           onPay={onPay} onUnpay={onUnpay} onExclude={onExclude} paying={paying} />
       ))}
       {withP.length > 0 && (
@@ -551,7 +553,13 @@ export default function PayrollClient({ isAdmin }: { isAdmin: boolean }) {
     })
   }
 
-  const commonProps = { isAdmin, year, month, onRefresh: fetchData, onOpenModal: openModal, onConfig: (u: UserRow) => setConfigUser(u), onPay: handlePay, onUnpay: handleUnpay, onExclude: handleExclude, paying }
+  function handleUpdatePayroll(userId: string, updated: Payroll) {
+    setRows(prev => prev.map(r =>
+      r.id === userId ? { ...r, payrolls: [updated] } : r
+    ))
+  }
+
+  const commonProps = { isAdmin, year, month, onRefresh: fetchData, onUpdatePayroll: handleUpdatePayroll, onOpenModal: openModal, onConfig: (u: UserRow) => setConfigUser(u), onPay: handlePay, onUnpay: handleUnpay, onExclude: handleExclude, paying }
 
   const prevLabel = (() => { const t = targetMonth('prev'); return `${MONTH_NAMES[t.month - 1]} ${t.year}` })()
   const nextLabel = (() => { const t = targetMonth('next'); return `${MONTH_NAMES[t.month - 1]} ${t.year}` })()
