@@ -3,6 +3,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import EmployeeScheduleView from '@/components/schedule/EmployeeScheduleView'
+import LimpiezaClient from '@/app/dashboard/limpieza/LimpiezaClient'
 import PreviewTabs from './PreviewTabs'
 import Link from 'next/link'
 
@@ -24,7 +25,7 @@ export default async function PreviewPage({ params }: { params: { userId: string
       })
     : []
 
-  const roleLabel: Record<string, string> = { ADMIN: 'Admin', GESTOR: 'Gestor', EMPLEADO: 'Empleado' }
+  const roleLabel: Record<string, string> = { ADMIN: 'Admin', GESTOR: 'Gestor', EMPLEADO: 'Empleado', LIMPIEZA: 'Limpieza' }
 
   return (
     <div>
@@ -45,7 +46,9 @@ export default async function PreviewPage({ params }: { params: { userId: string
       </div>
 
       <div className="p-4 sm:p-6">
-        {user.role === 'EMPLEADO' ? (
+        {user.role === 'LIMPIEZA' ? (
+          <LimpiezaClient isStaff={false} isAdmin={false} userId={user.id} userName={user.name} />
+        ) : user.role === 'EMPLEADO' ? (
           <EmployeeScheduleView userId={user.id} />
         ) : (
           <PreviewTabs
