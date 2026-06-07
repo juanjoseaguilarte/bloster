@@ -14,6 +14,7 @@ interface LimpiezaTask {
   section: 'BARRA' | 'COCINA'
   order: number
   active: boolean
+  countsForRanking: boolean
 }
 
 interface LimpiezaCompletion {
@@ -50,11 +51,12 @@ interface Ranking {
 
 interface Props {
   isStaff: boolean
+  isAdmin: boolean
   userId: string
   userName: string
 }
 
-export default function LimpiezaClient({ isStaff }: Props) {
+export default function LimpiezaClient({ isStaff, isAdmin }: Props) {
   const [activeSection, setActiveSection] = useState<'BARRA' | 'COCINA'>('BARRA')
   const [sectionLoaded, setSectionLoaded] = useState(false)
   const [currentWeek, setCurrentWeek] = useState(() => getWeekStart(new Date()))
@@ -238,6 +240,7 @@ export default function LimpiezaClient({ isStaff }: Props) {
     const key = `${taskId}-${dayOfWeek}`
     if (urgentToggling === key) return
     setUrgentToggling(key)
+
     const weekKey = getWeekKey(currentWeek)
     try {
       const res = await fetch('/api/limpieza/urgent', {
@@ -266,10 +269,12 @@ export default function LimpiezaClient({ isStaff }: Props) {
     const key = `${taskId}-${dayOfWeek}`
     if (toggling === key) return
     setToggling(key)
+
     const weekKey = getWeekKey(currentWeek)
     try {
       const body: Record<string, string> = { taskId, weekKey, dayOfWeek }
       if (userId) body.userId = userId
+
       const res = await fetch('/api/limpieza/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -331,6 +336,20 @@ export default function LimpiezaClient({ isStaff }: Props) {
     }
   }
 
+  async function handleToggleScoring(taskId: string, current: boolean) {
+    const res = await fetch(`/api/limpieza/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ countsForRanking: !current }),
+    })
+    if (res.ok) {
+      const updated = await res.json()
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, countsForRanking: updated.countsForRanking } : t))
+    } else {
+      toast.error('Error al actualizar')
+    }
+  }
+
   async function handleDeleteTask(taskId: string) {
     if (confirmDelete !== taskId) {
       setConfirmDelete(taskId)
@@ -376,9 +395,11 @@ export default function LimpiezaClient({ isStaff }: Props) {
   }
 
   const topPerformer = (() => {
-    if (completions.length === 0) return null
+    const scoringIds = new Set(tasks.filter(t => t.countsForRanking).map(t => t.id))
+    const scored = completions.filter(c => scoringIds.has(c.taskId))
+    if (scored.length === 0) return null
     const counts: Record<string, { name: string; count: number }> = {}
-    for (const c of completions) {
+    for (const c of scored) {
       if (!counts[c.userId]) counts[c.userId] = { name: c.user.name, count: 0 }
       counts[c.userId].count++
     }
@@ -542,6 +563,24 @@ export default function LimpiezaClient({ isStaff }: Props) {
                           </>
                         )}
                         <span className="text-gray-800 font-medium text-sm leading-tight">{task.name}</span>
+                        {!task.countsForRanking && (
+                          <span className="flex-shrink-0 text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded font-medium leading-none">
+                            no puntúa
+                          </span>
+                        )}
+                        {isAdmin && (
+                          <button
+                            onClick={() => handleToggleScoring(task.id, task.countsForRanking)}
+                            title={task.countsForRanking ? 'Marcar como que no puntúa' : 'Marcar como que sí puntúa'}
+                            className={`flex-shrink-0 text-xs leading-none transition-colors ${
+                              task.countsForRanking
+                                ? 'text-gray-300 hover:text-amber-400'
+                                : 'text-amber-400 hover:text-gray-300'
+                            }`}
+                          >
+                            🏆
+                          </button>
+                        )}
                       </div>
                     </td>
                     {DAYS.map(d => {
