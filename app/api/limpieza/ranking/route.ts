@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 async function getSectionRanking(section: 'BARRA' | 'COCINA', weekStart: Date) {
   const results = await prisma.limpiezaCompletion.groupBy({
     by: ['userId'],
-    where: { weekStart, task: { section, active: true } },
+    where: { weekStart, task: { section, active: true, countsForRanking: true } },
     _count: { id: true },
     orderBy: { _count: { id: 'desc' } },
     take: 10,
