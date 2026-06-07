@@ -188,12 +188,13 @@ model WeekClearLog {
 }
 
 model LimpiezaTask {
-  id          String    @id @default(cuid())
-  name        String
-  section     UserGroup
-  order       Int       @default(0)
-  active      Boolean   @default(true)
-  createdAt   DateTime  @default(now())
+  id                String    @id @default(cuid())
+  name              String
+  section           UserGroup
+  order             Int       @default(0)
+  active            Boolean   @default(true)
+  countsForRanking  Boolean   @default(true)
+  createdAt         DateTime  @default(now())
 
   completions LimpiezaCompletion[]
   urgents     LimpiezaUrgent[]
