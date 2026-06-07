@@ -505,7 +505,7 @@ export default function LimpiezaClient({ isStaff, isAdmin }: Props) {
           <table className="min-w-full text-sm">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="sticky left-0 bg-gray-50 px-4 py-3 text-left font-semibold text-gray-600 min-w-[160px] border-r border-gray-200">
+                <th className="sticky left-0 bg-gray-50 z-10 px-4 py-3 text-left font-semibold text-gray-600 min-w-[160px] border-r border-gray-200">
                   Tarea
                 </th>
                 {DAYS.map(d => (
@@ -530,7 +530,7 @@ export default function LimpiezaClient({ isStaff, isAdmin }: Props) {
               ) : (
                 tasks.map(task => (
                   <tr key={task.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-                    <td className="sticky left-0 bg-white px-3 py-2 border-r border-gray-100">
+                    <td className="sticky left-0 bg-white z-10 px-3 py-2 border-r border-gray-100">
                       <div className="flex items-center gap-1">
                         {isStaff && (
                           <>
