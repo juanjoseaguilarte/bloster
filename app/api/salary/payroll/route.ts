@@ -18,13 +18,22 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Missing year/month' }, { status: 400 })
   }
 
+  const monthStart = new Date(Date.UTC(year, month - 1, 1))
+  const monthEnd = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999))
+  // Include the week before month start to catch shifts in weeks that overlap
+  const rangeStart = new Date(monthStart)
+  rangeStart.setUTCDate(rangeStart.getUTCDate() - 6)
+
   const [users, exclusions] = await Promise.all([
     prisma.user.findMany({
       where: {
         role: { not: 'LIMPIEZA' },
         OR: [
           { active: true },
-          { payrolls: { some: {} } },
+          // Inactive users: only show if they have a payroll this month
+          { active: false, payrolls: { some: { year, month } } },
+          // ...or if they have shifts that fall in this month
+          { active: false, shifts: { some: { weekSchedule: { weekStart: { gte: rangeStart, lte: monthEnd } } } } },
         ],
       },
       select: {
