@@ -34,6 +34,7 @@ interface User {
   name: string
   color: string
   group: Group
+  active?: boolean
 }
 
 interface Props {
@@ -187,7 +188,13 @@ export default function WeekGrid({ users, readOnly = false, simulatedRole }: Pro
   const isPastWeek = currentWeek.getTime() < getWeekStart(new Date()).getTime()
   const editable = isManagerOrAdmin && !readOnly && (isAdmin || !isPastWeek)
   const isCurrentWeek = currentWeek.getTime() === getWeekStart(new Date()).getTime()
-  const groupUsers = users.filter(u => (u.group ?? 'BARRA') === activeGroup)
+  const activeShiftUserIds = new Set(
+    schedule?.shifts.filter(s => s.type !== 'OFF').map(s => s.userId) ?? []
+  )
+  const groupUsers = users.filter(u =>
+    (u.group ?? 'BARRA') === activeGroup &&
+    (u.active !== false || activeShiftUserIds.has(u.id))
+  )
 
   function solidLight(hex: string): string {
     const r = parseInt(hex.slice(1, 3), 16)
