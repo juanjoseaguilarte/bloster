@@ -18,11 +18,18 @@ export async function GET(req: NextRequest) {
   const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
   const limit = Math.min(50, parseInt(searchParams.get('limit') || '20'))
   const userId = searchParams.get('userId')
+  const dateStr = searchParams.get('date')
+  const periodFilter = searchParams.get('period')
   const skip = (page - 1) * limit
 
-  const where = userId
-    ? { shares: { some: { userId } } }
-    : {}
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const where: any = {}
+  if (userId) where.shares = { some: { userId } }
+  if (dateStr) {
+    const [y, m, d] = dateStr.split('-').map(Number)
+    where.date = new Date(Date.UTC(y, m - 1, d))
+  }
+  if (periodFilter) where.period = periodFilter
 
   const raw = await prisma.tipRecord.findMany({
     where,
@@ -58,7 +65,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
   }
 
-  // Determine hadShift for each employee
   const [y, m, d] = (date as string).split('-').map(Number)
   const dateUTC = new Date(Date.UTC(y, m - 1, d))
   const dayIndex = dateUTC.getUTCDay()
@@ -85,29 +91,54 @@ export async function POST(req: NextRequest) {
   const shiftUserIds = new Set(schedule?.shifts.map(s => s.userId) ?? [])
 
   const record = await prisma.$transaction(async (tx) => {
-    const activeDebts = await tx.tipDebt.findMany({ where: { active: true } })
+    const activeDebts = await tx.tipDebt.findMany({
+      where: { active: true },
+      orderBy: { createdAt: 'asc' },
+    })
 
-    let totalDeduction = 0
-    const deductionItems: { debtId: string; amount: number; newRemaining: number }[] = []
-
-    for (const debt of activeDebts) {
-      const deduction = totalAmount * (debt.percentage / 100)
-      const newRemaining = debt.remainingAmount - deduction
-      deductionItems.push({ debtId: debt.id, amount: deduction, newRemaining })
-      totalDeduction += deduction
-    }
-
-    const netAmount = totalAmount - totalDeduction
+    // netAmount is based on the sum of calculated percentages (not actual applied amounts)
+    const totalCalculatedDeduction = activeDebts.reduce(
+      (sum, debt) => sum + totalAmount * debt.percentage / 100, 0
+    )
+    const netAmount = totalAmount - totalCalculatedDeduction
     const perPerson = netAmount / employeeIds.length
 
-    // Update debts
-    for (const item of deductionItems) {
-      await tx.tipDebt.update({
-        where: { id: item.debtId },
-        data: {
-          remainingAmount: item.newRemaining,
-          ...(item.newRemaining <= 0 ? { active: false } : {}),
-        },
+    // Apply deductions with surplus carry-over between debts
+    let carriedSurplus = 0
+    const deductionItems: { debtId: string; amount: number }[] = []
+
+    for (const debt of activeDebts) {
+      const baseDeduction = totalAmount * debt.percentage / 100
+      const toApply = baseDeduction + carriedSurplus
+
+      if (debt.remainingAmount <= toApply) {
+        const actualApplied = debt.remainingAmount
+        carriedSurplus = toApply - debt.remainingAmount
+        await tx.tipDebt.update({
+          where: { id: debt.id },
+          data: { remainingAmount: 0, active: false },
+        })
+        if (actualApplied > 0.001) {
+          deductionItems.push({ debtId: debt.id, amount: actualApplied })
+        }
+      } else {
+        await tx.tipDebt.update({
+          where: { id: debt.id },
+          data: { remainingAmount: { decrement: toApply } },
+        })
+        deductionItems.push({ debtId: debt.id, amount: toApply })
+        carriedSurplus = 0
+      }
+    }
+
+    // Remaining surplus goes to fondo
+    if (carriedSurplus > 0.001) {
+      const fondoConfig = await tx.config.findUnique({ where: { key: 'tip_fondo' } })
+      const currentFondo = fondoConfig ? parseFloat(fondoConfig.value) : 0
+      await tx.config.upsert({
+        where: { key: 'tip_fondo' },
+        update: { value: String(currentFondo + carriedSurplus) },
+        create: { key: 'tip_fondo', value: String(currentFondo + carriedSurplus) },
       })
     }
 

@@ -13,11 +13,14 @@ export async function DELETE(
   }
 
   await prisma.$transaction(async (tx) => {
-    const deductions = await tx.tipDebtDeduction.findMany({
-      where: { tipRecordId: params.recordId },
+    const record = await tx.tipRecord.findUnique({
+      where: { id: params.recordId },
+      include: { deductions: true },
     })
+    if (!record) return
 
-    for (const ded of deductions) {
+    // Restore each debt's remaining amount
+    for (const ded of record.deductions) {
       const debt = await tx.tipDebt.findUnique({ where: { id: ded.tipDebtId } })
       if (!debt) continue
       const newRemaining = debt.remainingAmount + ded.amount
@@ -27,6 +30,22 @@ export async function DELETE(
           remainingAmount: newRemaining,
           ...(debt.remainingAmount <= 0 && newRemaining > 0 ? { active: true } : {}),
         },
+      })
+    }
+
+    // Restore any surplus that went to fondo
+    const totalDeductedFromDebts = record.deductions.reduce((sum, d) => sum + d.amount, 0)
+    const totalCalculatedDeduction = record.totalAmount - record.netAmount
+    const surplusToRestore = totalCalculatedDeduction - totalDeductedFromDebts
+
+    if (surplusToRestore > 0.001) {
+      const fondoConfig = await tx.config.findUnique({ where: { key: 'tip_fondo' } })
+      const currentFondo = fondoConfig ? parseFloat(fondoConfig.value) : 0
+      const newFondo = Math.max(0, currentFondo - surplusToRestore)
+      await tx.config.upsert({
+        where: { key: 'tip_fondo' },
+        update: { value: String(newFondo) },
+        create: { key: 'tip_fondo', value: String(newFondo) },
       })
     }
 
