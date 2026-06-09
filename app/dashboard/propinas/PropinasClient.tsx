@@ -282,7 +282,7 @@ export default function PropinasClient({ userId: _userId }: Props) {
       {/* ═══ NUEVO REPARTO ═══ */}
       {tab === 'nuevo' && (
         <div className="space-y-5 max-w-lg">
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-500 mb-1">Fecha</label>
               <input
