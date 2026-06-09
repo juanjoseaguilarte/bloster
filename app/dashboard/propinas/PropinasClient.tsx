@@ -263,18 +263,20 @@ export default function PropinasClient({ userId: _userId }: Props) {
   return (
     <div className="space-y-4">
       {/* Tabs */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit overflow-x-auto">
-        {(['nuevo', 'historial', 'deudas', 'resumen'] as const).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap ${
-              tab === t ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            {t === 'nuevo' ? 'Nuevo reparto' : t === 'historial' ? 'Historial' : t === 'deudas' ? 'Deudas' : 'Resumen mensual'}
-          </button>
-        ))}
+      <div className="overflow-x-auto scrollbar-none -mx-1">
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit min-w-full mx-1">
+          {(['nuevo', 'historial', 'deudas', 'resumen'] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap flex-1 ${
+                tab === t ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {t === 'nuevo' ? 'Nuevo reparto' : t === 'historial' ? 'Historial' : t === 'deudas' ? 'Deudas' : 'Resumen'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ═══ NUEVO REPARTO ═══ */}
