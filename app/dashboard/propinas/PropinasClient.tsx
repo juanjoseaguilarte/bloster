@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import toast from 'react-hot-toast'
 
 type Period = 'MORNING' | 'AFTERNOON'
@@ -84,6 +84,7 @@ export default function PropinasClient({ userId: _userId }: Props) {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loadingEmployees, setLoadingEmployees] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const hasSuggestedRef = useRef(false)
   const [debts, setDebts] = useState<TipDebt[]>([])
   const [loadingDebts, setLoadingDebts] = useState(false)
 
@@ -153,6 +154,7 @@ export default function PropinasClient({ userId: _userId }: Props) {
 
   async function fetchEmployees() {
     if (!date) return
+    hasSuggestedRef.current = true
     setLoadingEmployees(true)
     setEmployees([])
     try {
@@ -165,6 +167,11 @@ export default function PropinasClient({ userId: _userId }: Props) {
       setLoadingEmployees(false)
     }
   }
+
+  useEffect(() => {
+    if (hasSuggestedRef.current) fetchEmployees()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, period])
 
   const totalAmountNum = parseFloat(totalAmount) || 0
   const activeDebts = debts.filter(d => d.active)
