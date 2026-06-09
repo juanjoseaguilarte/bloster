@@ -12,6 +12,26 @@ export async function DELETE(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  await prisma.tipRecord.delete({ where: { id: params.recordId } })
+  await prisma.$transaction(async (tx) => {
+    const deductions = await tx.tipDebtDeduction.findMany({
+      where: { tipRecordId: params.recordId },
+    })
+
+    for (const ded of deductions) {
+      const debt = await tx.tipDebt.findUnique({ where: { id: ded.tipDebtId } })
+      if (!debt) continue
+      const newRemaining = debt.remainingAmount + ded.amount
+      await tx.tipDebt.update({
+        where: { id: ded.tipDebtId },
+        data: {
+          remainingAmount: newRemaining,
+          ...(debt.remainingAmount <= 0 && newRemaining > 0 ? { active: true } : {}),
+        },
+      })
+    }
+
+    await tx.tipRecord.delete({ where: { id: params.recordId } })
+  })
+
   return NextResponse.json({ ok: true })
 }
