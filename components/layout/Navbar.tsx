@@ -59,6 +59,7 @@ export default function Navbar() {
         { href: '/dashboard/users', label: 'Empleados' },
         { href: '/dashboard/payroll', label: 'Kombat' },
         { href: '/dashboard/limpieza', label: 'Limpieza' },
+        ...(role === 'ADMIN' ? [{ href: '/dashboard/propinas', label: 'Propinas' }] : []),
         { href: '/dashboard/profile', label: 'Mi perfil' },
       ]
     : [

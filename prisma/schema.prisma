@@ -77,6 +77,9 @@ model User {
   payrolls       MonthlyPayroll[]
   payrollsPaid   MonthlyPayroll[] @relation("PayrollPaidBy")
   exclusions     PayrollExclusion[]
+  tipShares         TipShare[]
+  tipRecordsCreated TipRecord[]    @relation("TipCreatedBy")
+  tipDebtsCreated   TipDebt[]      @relation("TipDebtCreatedBy")
 }
 
 model SalaryConfig {
@@ -222,4 +225,57 @@ model LimpiezaUrgent {
   markedAt  DateTime     @default(now())
 
   @@unique([taskId, weekStart, dayOfWeek])
+}
+
+model TipRecord {
+  id          String   @id @default(cuid())
+  date        DateTime
+  period      Period
+  totalAmount Float
+  netAmount   Float
+  notes       String?
+  createdById String
+  createdBy   User     @relation("TipCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+
+  shares     TipShare[]
+  deductions TipDebtDeduction[]
+}
+
+model TipShare {
+  id          String    @id @default(cuid())
+  tipRecordId String
+  tipRecord   TipRecord @relation(fields: [tipRecordId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  amount      Float
+  hadShift    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  @@unique([tipRecordId, userId])
+}
+
+model TipDebt {
+  id              String   @id @default(cuid())
+  description     String
+  originalAmount  Float
+  remainingAmount Float
+  percentage      Float
+  active          Boolean  @default(true)
+  createdById     String
+  createdBy       User     @relation("TipDebtCreatedBy", fields: [createdById], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  deductions TipDebtDeduction[]
+}
+
+model TipDebtDeduction {
+  id          String    @id @default(cuid())
+  tipDebtId   String
+  tipDebt     TipDebt   @relation(fields: [tipDebtId], references: [id])
+  tipRecordId String
+  tipRecord   TipRecord @relation(fields: [tipRecordId], references: [id], onDelete: Cascade)
+  amount      Float
+  createdAt   DateTime  @default(now())
 }
