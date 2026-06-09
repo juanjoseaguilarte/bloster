@@ -85,7 +85,9 @@ export default function PropinasClient({ userId: _userId }: Props) {
   const [loadingEmployees, setLoadingEmployees] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const hasSuggestedRef = useRef(false)
+  const [existingRecord, setExistingRecord] = useState(false)
   const [debts, setDebts] = useState<TipDebt[]>([])
+  const [fondo, setFondo] = useState(0)
   const [loadingDebts, setLoadingDebts] = useState(false)
 
   const [records, setRecords] = useState<TipRecord[]>([])
@@ -111,7 +113,11 @@ export default function PropinasClient({ userId: _userId }: Props) {
     setLoadingDebts(true)
     try {
       const res = await fetch('/api/tips/debts')
-      if (res.ok) setDebts(await res.json())
+      if (res.ok) {
+        const data = await res.json()
+        setDebts(data.debts)
+        setFondo(data.fondo)
+      }
     } finally {
       setLoadingDebts(false)
     }
@@ -173,6 +179,15 @@ export default function PropinasClient({ userId: _userId }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, period])
 
+  useEffect(() => {
+    if (!date) return
+    fetch(`/api/tips/records?date=${date}&period=${period}&limit=1`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => setExistingRecord((data?.records?.length ?? 0) > 0))
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, period])
+
   const totalAmountNum = parseFloat(totalAmount) || 0
   const activeDebts = debts.filter(d => d.active)
   const totalDeduction = activeDebts.reduce((sum, d) => sum + totalAmountNum * d.percentage / 100, 0)
@@ -203,6 +218,8 @@ export default function PropinasClient({ userId: _userId }: Props) {
         setTotalAmount('')
         setNotes('')
         setEmployees([])
+        hasSuggestedRef.current = false
+        setExistingRecord(true)
         await fetchDebts()
       } else {
         const err = await res.json()
@@ -238,13 +255,18 @@ export default function PropinasClient({ userId: _userId }: Props) {
         body: JSON.stringify({ description: newDebtDesc, amount, percentage: pct }),
       })
       if (res.ok) {
-        const newDebt = await res.json()
+        const { debt: newDebt, fondoApplied } = await res.json()
         setDebts(prev => [newDebt, ...prev])
+        setFondo(f => Math.max(0, f - (fondoApplied ?? 0)))
         setNewDebtDesc('')
         setNewDebtAmount('')
         setNewDebtPct('')
         setShowAddDebt(false)
-        toast.success('Deuda añadida')
+        if (fondoApplied > 0) {
+          toast.success(`Deuda añadida. Se aplicaron ${fmt(fondoApplied)} del fondo.`)
+        } else {
+          toast.success('Deuda añadida')
+        }
       } else {
         toast.error('Error al añadir deuda')
       }
@@ -287,6 +309,12 @@ export default function PropinasClient({ userId: _userId }: Props) {
       {/* ═══ NUEVO REPARTO ═══ */}
       {tab === 'nuevo' && (
         <div className="space-y-5 max-w-lg">
+          {existingRecord && (
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
+              <span className="text-blue-500 shrink-0">ℹ️</span>
+              <span className="text-xs text-blue-700 font-medium">Ya existe un reparto para este día y turno.</span>
+            </div>
+          )}
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-500 mb-1">Fecha</label>
@@ -517,6 +545,15 @@ export default function PropinasClient({ userId: _userId }: Props) {
       {/* ═══ DEUDAS ═══ */}
       {tab === 'deudas' && (
         <div className="space-y-4 max-w-lg">
+          {fondo > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-green-600">💰</span>
+                <span className="text-sm font-semibold text-green-800">Fondo disponible</span>
+              </div>
+              <span className="text-sm font-bold text-green-700">{fmt(fondo)}</span>
+            </div>
+          )}
           {loadingDebts && debts.length === 0 && <p className="text-sm text-gray-400">Cargando...</p>}
 
           {!loadingDebts && debts.length === 0 && !showAddDebt && (
