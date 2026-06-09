@@ -59,6 +59,7 @@ export default function Navbar() {
         { href: '/dashboard/users', label: 'Empleados' },
         { href: '/dashboard/payroll', label: 'Kombat' },
         { href: '/dashboard/limpieza', label: 'Limpieza' },
+        ...(role === 'ADMIN' ? [{ href: '/dashboard/propinas', label: 'Propinas' }] : []),
         { href: '/dashboard/profile', label: 'Mi perfil' },
       ]
     : [
@@ -82,7 +83,7 @@ export default function Navbar() {
             {isStaff && <QRModal />}
             <InstallPrompt />
             <span className="text-sm text-gray-600 font-medium">{session?.user?.name}</span>
-            {role !== 'EMPLEADO' && role !== 'LIMPIEZA' && (
+            {role !== 'EMPLEADO' && (
               <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full hidden sm:inline">{role}</span>
             )}
             <button
