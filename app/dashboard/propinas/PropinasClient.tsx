@@ -272,7 +272,7 @@ export default function PropinasClient({ userId: _userId }: Props) {
               tab === t ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            {t === 'nuevo' ? 'Nuevo reparto' : t === 'historial' ? 'Historial' : t === 'deudas' ? 'Deudas' : 'Resumen mensual'}
+            {t === 'nuevo' ? 'Nuevo reparto' : t === 'historial' ? 'Historial' : t === 'deudas' ? 'Deudas' : 'Resumen'}
           </button>
         ))}
       </div>
