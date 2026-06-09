@@ -96,20 +96,22 @@ export default function Navbar() {
         </div>
 
         {/* Fila inferior: links de navegación */}
-        <div className="px-4 sm:px-6 flex gap-1 border-t border-gray-100 overflow-x-auto scrollbar-none">
-          {links.map(l => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap shrink-0 ${
-                pathname === l.href
-                  ? 'border-blue-600 text-blue-700'
-                  : 'border-transparent text-gray-500 hover:text-gray-800'
-              }`}
-            >
-              {l.label}
-            </Link>
-          ))}
+        <div className="border-t border-gray-100 overflow-x-auto scrollbar-none">
+          <div className="flex gap-1 px-4 sm:px-6">
+            {links.map(l => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap shrink-0 ${
+                  pathname === l.href
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-gray-500 hover:text-gray-800'
+                }`}
+              >
+                {l.label}
+              </Link>
+            ))}
+          </div>
         </div>
       </nav>
       <VersionChecker />
