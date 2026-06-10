@@ -13,11 +13,26 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const body = await req.json().catch(() => ({}))
   const reopen = body.reopen === true
 
+  if (reopen && session.user.role !== 'ADMIN') {
+    return NextResponse.json(
+      { error: 'Solo el administrador puede reabrir una semana publicada.' },
+      { status: 403 }
+    )
+  }
+
   const updated = await prisma.weekSchedule.update({
     where: { id: params.id },
     data: reopen
       ? { isClosed: false, closedAt: null, closedById: null }
       : { isClosed: true, closedAt: new Date(), closedById: session.user.id },
+  })
+
+  await prisma.shiftLog.create({
+    data: {
+      weekScheduleId: params.id,
+      changedById: session.user.id,
+      action: reopen ? 'reopened' : 'published',
+    },
   })
 
   if (!reopen) {

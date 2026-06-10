@@ -11,6 +11,21 @@ import toast from 'react-hot-toast'
 type ShiftType = 'TIME' | 'LIBRE' | 'OFF' | 'IMAGINARY'
 type Period = 'MORNING' | 'AFTERNOON'
 type Group = 'BARRA' | 'COCINA'
+type DayOfWeek = 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY'
+
+interface ShiftLogEntry {
+  id: string
+  action: string
+  day: DayOfWeek | null
+  period: Period | null
+  oldType: ShiftType | null
+  newType: ShiftType | null
+  oldStartTime: string | null
+  newStartTime: string | null
+  createdAt: string
+  changedBy: { id: string; name: string }
+  targetUser: { id: string; name: string } | null
+}
 
 interface Shift {
   id: string
@@ -43,6 +58,22 @@ interface Props {
   simulatedRole?: 'GESTOR' | 'ADMIN'
 }
 
+const DAY_LABELS: Record<string, string> = {
+  MONDAY: 'Lun', TUESDAY: 'Mar', WEDNESDAY: 'Mié',
+  THURSDAY: 'Jue', FRIDAY: 'Vie', SATURDAY: 'Sáb', SUNDAY: 'Dom',
+}
+
+function fmtType(type: string | null, startTime?: string | null): string {
+  if (!type) return '—'
+  switch (type) {
+    case 'TIME': return `Trabaja${startTime ? ` ${startTime}` : ''}`
+    case 'LIBRE': return 'Libre'
+    case 'OFF': return 'Off'
+    case 'IMAGINARY': return 'Extra'
+    default: return type
+  }
+}
+
 export default function WeekGrid({ users, readOnly = false, simulatedRole }: Props) {
   const { data: session } = useSession()
   const [currentWeek, setCurrentWeek] = useState(() => getWeekStart(new Date()))
@@ -57,6 +88,9 @@ export default function WeekGrid({ users, readOnly = false, simulatedRole }: Pro
   const [activeGroup, setActiveGroup] = useState<Group>('BARRA')
   const [showDebug, setShowDebug] = useState(false)
   const [debugLog, setDebugLog] = useState<string[]>([])
+  const [showLog, setShowLog] = useState(false)
+  const [shiftLogs, setShiftLogs] = useState<ShiftLogEntry[]>([])
+  const [loadingLog, setLoadingLog] = useState(false)
 
   function addLog(msg: string) {
     const ts = new Date().toLocaleTimeString('es-ES')
@@ -178,6 +212,22 @@ export default function WeekGrid({ users, readOnly = false, simulatedRole }: Pro
     }
   }
 
+  async function fetchLog() {
+    if (!schedule) return
+    setLoadingLog(true)
+    try {
+      const res = await fetch(`/api/schedules/${schedule.id}/log`)
+      if (res.ok) setShiftLogs(await res.json())
+    } finally {
+      setLoadingLog(false)
+    }
+  }
+
+  function toggleLog() {
+    if (!showLog) fetchLog()
+    setShowLog(v => !v)
+  }
+
   function getShift(userId: string, day: string, period: Period) {
     return schedule?.shifts.find(s => s.userId === userId && s.day === day && s.period === period)
   }
@@ -186,7 +236,7 @@ export default function WeekGrid({ users, readOnly = false, simulatedRole }: Pro
   const isAdmin = effectiveRole === 'ADMIN'
   const isManagerOrAdmin = ['ADMIN', 'GESTOR'].includes(effectiveRole)
   const isPastWeek = currentWeek.getTime() < getWeekStart(new Date()).getTime()
-  const editable = isManagerOrAdmin && !readOnly && (isAdmin || !isPastWeek)
+  const editable = isManagerOrAdmin && !readOnly && !schedule?.isClosed && (isAdmin || !isPastWeek)
   const isCurrentWeek = currentWeek.getTime() === getWeekStart(new Date()).getTime()
   const activeShiftUserIds = new Set(
     schedule?.shifts.filter(s => s.type !== 'OFF').map(s => s.userId) ?? []
@@ -251,39 +301,108 @@ export default function WeekGrid({ users, readOnly = false, simulatedRole }: Pro
             🐛 Debug
           </button>
         )}
-        {editable && schedule && (
+        {isManagerOrAdmin && !readOnly && schedule && (
           <div className="flex gap-2 flex-wrap justify-end">
-            <button
-              onClick={handleCopyPrevWeek}
-              disabled={copying}
-              className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              {copying ? '...' : '⎘ Copiar anterior'}
-            </button>
-            <button
-              onClick={() => setConfirmClear(true)}
-              disabled={clearing}
-              className="px-3 py-1.5 rounded-lg border border-red-200 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
-            >
-              {clearing ? '...' : '✕ Borrar semana'}
-            </button>
-            <ClearHistory onRestored={fetchSchedule} />
-            <button
-              onClick={handleToggleClose}
-              disabled={closing}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                schedule.isClosed ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-green-600 hover:bg-green-700 text-white'
-              }`}
-            >
-              {closing ? '...' : schedule.isClosed ? 'Reabrir' : 'Publicar semana'}
-            </button>
+            {editable && (
+              <>
+                <button
+                  onClick={handleCopyPrevWeek}
+                  disabled={copying}
+                  className="px-3 py-1.5 rounded-lg border border-gray-300 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {copying ? '...' : '⎘ Copiar anterior'}
+                </button>
+                <button
+                  onClick={() => setConfirmClear(true)}
+                  disabled={clearing}
+                  className="px-3 py-1.5 rounded-lg border border-red-200 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+                >
+                  {clearing ? '...' : '✕ Borrar semana'}
+                </button>
+                <ClearHistory onRestored={fetchSchedule} />
+              </>
+            )}
+            {!schedule.isClosed && (
+              <button
+                onClick={handleToggleClose}
+                disabled={closing}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-green-600 hover:bg-green-700 text-white transition-colors disabled:opacity-50"
+              >
+                {closing ? '...' : 'Publicar semana'}
+              </button>
+            )}
+            {schedule.isClosed && isAdmin && (
+              <button
+                onClick={handleToggleClose}
+                disabled={closing}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white transition-colors disabled:opacity-50"
+              >
+                {closing ? '...' : 'Reabrir'}
+              </button>
+            )}
           </div>
         )}
       </div>
 
       {schedule?.isClosed && (
-        <div className="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-lg">
-          ✓ Semana publicada
+        <div className="flex items-center justify-between gap-2 bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-lg text-xs">
+          <span>✓ Semana publicada{!isAdmin && ' · Solo el administrador puede reabrir'}</span>
+          {isManagerOrAdmin && (
+            <button
+              onClick={toggleLog}
+              className="text-xs text-green-600 hover:text-green-800 font-semibold underline shrink-0"
+            >
+              {showLog ? 'Ocultar log' : 'Ver log'}
+            </button>
+          )}
+        </div>
+      )}
+      {!schedule?.isClosed && isManagerOrAdmin && schedule && (
+        <div className="flex justify-end">
+          <button
+            onClick={toggleLog}
+            className="text-xs text-gray-400 hover:text-gray-600 underline"
+          >
+            {showLog ? 'Ocultar log' : 'Ver log de cambios'}
+          </button>
+        </div>
+      )}
+
+      {/* Log panel */}
+      {showLog && isManagerOrAdmin && (
+        <div className="border border-gray-200 rounded-xl overflow-hidden">
+          <div className="bg-gray-50 px-3 py-2 flex items-center justify-between border-b border-gray-200">
+            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Log de cambios</span>
+            {loadingLog && <span className="text-xs text-gray-400">Cargando...</span>}
+          </div>
+          {shiftLogs.length === 0 && !loadingLog && (
+            <p className="text-xs text-gray-400 px-3 py-3">Sin cambios registrados para esta semana.</p>
+          )}
+          <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+            {shiftLogs.map(log => (
+              <div key={log.id} className="px-3 py-2 flex items-start gap-2 hover:bg-gray-50">
+                <span className="text-xs text-gray-400 shrink-0 w-28">
+                  {new Date(log.createdAt).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                </span>
+                <span className="text-xs font-semibold text-gray-700 shrink-0">{log.changedBy.name}</span>
+                <span className="text-xs text-gray-500">
+                  {log.action === 'published' && '✓ Publicó la semana'}
+                  {log.action === 'reopened' && '↩ Reabrió la semana'}
+                  {log.action === 'cleared' && '✕ Borró la semana'}
+                  {log.action === 'copied' && '⎘ Copió semana anterior'}
+                  {log.action === 'shift' && log.targetUser && log.day && log.period && (
+                    <>
+                      {log.targetUser.name} · {DAY_LABELS[log.day]} {log.period === 'MORNING' ? 'mañana' : 'tarde'}
+                      {': '}
+                      <span className="text-gray-400">{fmtType(log.oldType, log.oldStartTime)}</span>
+                      {' → '}
+                      <span className="font-medium text-gray-700">{fmtType(log.newType, log.newStartTime)}</span>
+                    </>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
