@@ -16,11 +16,47 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
   }
 
+  const weekSchedule = await prisma.weekSchedule.findUnique({
+    where: { id: weekScheduleId },
+    select: { isClosed: true },
+  })
+
+  if (!weekSchedule) {
+    return NextResponse.json({ error: 'Semana no encontrada' }, { status: 404 })
+  }
+
+  if (weekSchedule.isClosed) {
+    return NextResponse.json(
+      { error: 'Esta semana está publicada. Reabre la semana para poder editar.' },
+      { status: 403 }
+    )
+  }
+
+  const existing = await prisma.shift.findUnique({
+    where: { userId_weekScheduleId_day_period: { userId, weekScheduleId, day, period } },
+  })
+
   const shift = await prisma.shift.upsert({
     where: { userId_weekScheduleId_day_period: { userId, weekScheduleId, day, period } },
     update: { type, startTime: type === 'TIME' ? startTime : null },
     create: { userId, weekScheduleId, day, period, type, startTime: type === 'TIME' ? startTime : null },
     include: { user: { select: { id: true, name: true, color: true } } },
   })
+
+  await prisma.shiftLog.create({
+    data: {
+      weekScheduleId,
+      changedById: session.user.id,
+      action: 'shift',
+      targetUserId: userId,
+      day,
+      period,
+      oldType: existing?.type ?? null,
+      newType: type,
+      oldStartTime: existing?.startTime ?? null,
+      newStartTime: type === 'TIME' ? (startTime ?? null) : null,
+    },
+  })
+
   return NextResponse.json(shift)
 }
