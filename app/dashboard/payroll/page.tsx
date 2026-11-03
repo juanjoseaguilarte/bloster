@@ -6,6 +6,7 @@ import PayrollClient from './PayrollClient'
 export default async function PayrollPage() {
   const session = await getServerSession(authOptions)
   if (!session || !['ADMIN', 'GESTOR'].includes(session.user.role)) redirect('/dashboard')
+  redirect('/dashboard')
 
   return (
     <div className="p-4 sm:p-6">
